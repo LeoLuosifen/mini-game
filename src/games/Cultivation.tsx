@@ -1,0 +1,556 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+// --- Data & Config ---
+const REALMS = [
+  "凡人", "炼气", "筑基", "金丹", "元婴", "化神", "炼虚", "合体", "大乘", "渡劫", "大帝"
+];
+
+const CULTIVATION_LOGS = [
+  "你感悟天地，一丝紫气入体。",
+  "灵气如丝，缓缓汇聚于丹田。",
+  "你运转功法，周身穴位微微发热。",
+  "四周灵气暴动，被你强行纳入体内。",
+  "心境通明，修炼速度略有提升。",
+  "你吞吐日月精华，洗涤经脉。",
+  "丹田内灵力翻涌，更显凝实。",
+  "你进入深度冥想，物我两忘。",
+  "一丝感悟涌上心头，灵力运转更顺畅。",
+  "天地灵气如潮水般向你涌来。"
+];
+
+const EVENTS = {
+  positive: [
+    { text: "你在山间偶遇一处废弃洞府，获得灵石 x{val}。", type: 'stones', base: 50 },
+    { text: "路遇一位重伤散修，你施以援手，对方赠予你灵石 x{val}。", type: 'stones', base: 30 },
+    { text: "在一处悬崖边发现一株百年灵药，服下后修为大增！", type: 'exp', base: 100 },
+    { text: "捡到一枚储物戒指，里面竟有灵石 x{val}。", type: 'stones', base: 80 },
+    { text: "感悟天地法则，瞬间获得大量修为！", type: 'exp', base: 200 }
+  ],
+  negative: [
+    { text: "历练途中遭遇劫匪，虽然逃脱，但丢失了灵石 x{val}。", type: 'stones', base: -20 },
+    { text: "强行突破经脉，导致灵力反噬，损失部分修为。", type: 'exp', base: -50 },
+    { text: "误入迷阵，困了数日才脱身，身心俱疲。", type: 'none' },
+    { text: "遭遇妖兽袭击，负伤逃走，损失灵石 x{val} 购买伤药。", type: 'stones', base: -15 },
+    { text: "修炼时不慎走火入魔，修为略有倒退。", type: 'exp', base: -30 }
+  ],
+  neutral: [
+    { text: "今日天气晴朗，你坐在崖边感悟天地，心境平和。", type: 'none' },
+    { text: "在茶馆听说了一些修仙界的奇闻异事。", type: 'none' },
+    { text: "路过一座凡人小镇，感受了一番人间烟火。", type: 'none' },
+    { text: "看到两名修士为争夺宝物大打出手，你悄悄绕开。", type: 'none' },
+    { text: "在林间漫步，偶然惊起一群灵鸟。", type: 'none' }
+  ]
+};
+
+const OLD_MAN_QUOTES = [
+  "小子，就你这速度，老夫当年闭着眼都比你快！",
+  "不错，这根骨虽然一般，但胜在心性坚定。",
+  "快点突破，老夫还等着你重塑肉身呢！",
+  "别整天想着奇遇，脚踏实地才是正道。",
+  "哎，现在的年轻人，真是一代不如一代了..."
+];
+
+interface PlayerData {
+  name: string;
+  stageIndex: number; // 扁平化的等级索引：0=凡人, 1=炼气一层, 10=炼气巅峰, 11=筑基一层...
+  exp: number;
+  stones: number;
+  arrayLevel: number;
+  elixirCount: number;
+  attack: number;
+  defense: number;
+}
+
+const STORAGE_KEY = 'pixel_joy_cultivation_save';
+
+export default function Cultivation() {
+  // --- State ---
+  const [player, setPlayer] = useState<PlayerData>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to load save", e);
+      }
+    }
+    return {
+      name: "无名修士",
+      stageIndex: 0,
+      exp: 0,
+      stones: 0,
+      arrayLevel: 0,
+      elixirCount: 0,
+      attack: 10,
+      defense: 5
+    };
+  });
+
+  const getRealmName = (index: number) => {
+    if (index === 0) return "凡人";
+    const majorIdx = Math.floor((index - 1) / 10) + 1;
+    const minorIdx = (index - 1) % 10 + 1;
+    const majorName = REALMS[majorIdx] || "未知";
+    if (minorIdx === 10) return `${majorName}巅峰`;
+    const chineseNums = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
+    return `${majorName}${chineseNums[minorIdx - 1]}层`;
+  };
+
+  const [logs, setLogs] = useState<string[]>(["欢迎来到修仙世界，开始你的长生之路吧。"]);
+  const [activeTab, setActiveTab] = useState<'cultivate' | 'adventure' | 'abode' | 'market'>('cultivate');
+  const [isPaused, setIsPaused] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [npcQuote, setNpcQuote] = useState(OLD_MAN_QUOTES[0]);
+
+  // --- Refs for game loop ---
+  const lastSaveRef = useRef(Date.now());
+
+  // --- Formulas ---
+  const getExpRequirement = (index: number) => Math.floor(100 * Math.pow(1.12, index));
+  const getIdleExp = () => (player.arrayLevel * 2 + 1) * (1 + player.elixirCount * 0.5);
+  const getManualExp = () => (5 + Math.floor(player.stageIndex / 5)) * (1 + player.elixirCount * 0.5);
+  const getBreakthroughChance = () => {
+    if (player.stageIndex === 0) return 1; // 凡人必过
+    const isMajor = player.stageIndex % 10 === 0;
+    if (isMajor) return Math.max(0.1, 0.8 - (player.stageIndex / 100)); // 大境界突破较难
+    return 0.95; // 小境界突破较易
+  };
+
+  // --- Actions ---
+  const addLog = (msg: string) => {
+    setLogs(prev => [msg, ...prev].slice(0, 50));
+  };
+
+  const saveGame = useCallback((data: PlayerData) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, []);
+
+  const handleManualCultivate = () => {
+    if (isPaused) return;
+    const req = getExpRequirement(player.stageIndex);
+    if (player.exp >= req) {
+      addLog("修为已达瓶颈，请尽快突破！");
+      return;
+    }
+    const gain = getManualExp();
+    setPlayer(prev => {
+      const next = { ...prev, exp: Math.min(req, prev.exp + gain) };
+      saveGame(next);
+      return next;
+    });
+    addLog(CULTIVATION_LOGS[Math.floor(Math.random() * CULTIVATION_LOGS.length)]);
+  };
+
+  const handleBreakthrough = () => {
+    if (isPaused) return;
+    const req = getExpRequirement(player.stageIndex);
+    if (player.exp < req) {
+      addLog("修为不足，无法突破！");
+      return;
+    }
+
+    const chance = getBreakthroughChance();
+    if (Math.random() < chance) {
+      setPlayer(prev => {
+        const next = {
+          ...prev,
+          stageIndex: prev.stageIndex + 1,
+          exp: 0,
+          attack: prev.attack + 5,
+          defense: prev.defense + 3
+        };
+        saveGame(next);
+        return next;
+      });
+      addLog(`恭喜！你成功突破到了 ${getRealmName(player.stageIndex + 1)}！`);
+      setNpcQuote(OLD_MAN_QUOTES[Math.floor(Math.random() * OLD_MAN_QUOTES.length)]);
+    } else {
+      setPlayer(prev => {
+        const next = { ...prev, exp: Math.floor(prev.exp * 0.7) };
+        saveGame(next);
+        return next;
+      });
+      addLog("突破失败！灵力反噬，损失了三成修为...");
+    }
+  };
+
+  const handleAdventure = () => {
+    if (isPaused) return;
+    const rand = Math.random();
+    let event;
+    let type: 'positive' | 'negative' | 'neutral';
+
+    if (rand < 0.4) type = 'positive';
+    else if (rand < 0.7) type = 'negative';
+    else type = 'neutral';
+
+    const pool = EVENTS[type];
+    event = pool[Math.floor(Math.random() * pool.length)];
+
+    let logMsg = event.text;
+    let stoneGain = 0;
+    let expGain = 0;
+
+    if (event.type === 'stones') {
+      stoneGain = Math.floor(Math.abs(event.base || 0) * (Math.floor(player.stageIndex / 10) + 1) * (0.5 + Math.random()));
+      if (event.base && event.base < 0) stoneGain = -Math.min(player.stones, Math.abs(stoneGain));
+      logMsg = logMsg.replace('{val}', Math.abs(stoneGain).toString());
+    } else if (event.type === 'exp') {
+      expGain = Math.floor((event.base || 0) * (Math.floor(player.stageIndex / 10) + 1));
+    } else if (type === 'neutral' && Math.random() < 0.3) {
+      // Small chance for a battle in neutral/adventure
+      const monsterLevel = Math.max(1, Math.floor(player.stageIndex / 5) + (Math.random() > 0.5 ? 1 : -1));
+      const monsterAtk = monsterLevel * 8;
+      const monsterDef = monsterLevel * 4;
+      
+      const playerDmg = Math.max(1, player.attack - monsterDef);
+      const monsterDmg = Math.max(1, monsterAtk - player.defense);
+      
+      if (playerDmg >= monsterDmg) {
+        stoneGain = monsterLevel * 20;
+        logMsg = `遭遇一只 ${monsterLevel} 级妖兽，你经过一番苦战将其击杀，获得灵石 x${stoneGain}。`;
+      } else {
+        stoneGain = -Math.min(player.stones, 10);
+        logMsg = `遭遇一只 ${monsterLevel} 级妖兽，你力战不敌，负伤逃走，损失了少量灵石。`;
+      }
+    }
+
+    setPlayer(prev => {
+      const req = getExpRequirement(prev.stageIndex);
+      const next = {
+        ...prev,
+        stones: Math.max(0, prev.stones + stoneGain),
+        exp: Math.min(req, Math.max(0, prev.exp + expGain))
+      };
+      saveGame(next);
+      return next;
+    });
+    addLog(logMsg);
+  };
+
+  const handleUpgradeArray = () => {
+    const cost = Math.floor(50 * Math.pow(1.8, player.arrayLevel));
+    if (player.stones < cost) {
+      addLog("灵石不足，无法升级聚灵阵！");
+      return;
+    }
+    setPlayer(prev => {
+      const next = {
+        ...prev,
+        stones: prev.stones - cost,
+        arrayLevel: prev.arrayLevel + 1
+      };
+      saveGame(next);
+      return next;
+    });
+    addLog(`聚灵阵升级成功！当前等级：${player.arrayLevel + 1}`);
+  };
+
+  const handleBuyElixir = () => {
+    const cost = Math.floor(100 * Math.pow(2, player.elixirCount));
+    if (player.stones < cost) {
+      addLog("灵石不足，无法购买丹药！");
+      return;
+    }
+    setPlayer(prev => {
+      const next = {
+        ...prev,
+        stones: prev.stones - cost,
+        elixirCount: prev.elixirCount + 1
+      };
+      saveGame(next);
+      return next;
+    });
+    addLog(`服用丹药成功！修炼效率永久提升。`);
+  };
+
+  // --- Effects ---
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPaused) return;
+      const gain = getIdleExp();
+      setPlayer(prev => {
+        const req = getExpRequirement(prev.stageIndex);
+        if (prev.exp >= req) return prev;
+        
+        const next = { ...prev, exp: Math.min(req, prev.exp + gain / 10) }; // Update every 100ms for smoothness
+        
+        // Auto-save every 10 seconds
+        if (Date.now() - lastSaveRef.current > 10000) {
+          saveGame(next);
+          lastSaveRef.current = Date.now();
+        }
+        
+        return next;
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isPaused, saveGame]);
+
+  // Periodic NPC quotes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNpcQuote(OLD_MAN_QUOTES[Math.floor(Math.random() * OLD_MAN_QUOTES.length)]);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleReset = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setPlayer({
+      name: "无名修士",
+      stageIndex: 0,
+      exp: 0,
+      stones: 0,
+      arrayLevel: 0,
+      elixirCount: 0,
+      attack: 10,
+      defense: 5
+    });
+    setLogs(["数据已重置，开始新的长生之路吧。"]);
+    addLog("数据已重置，开始新的长生之路吧。");
+    setShowResetConfirm(false);
+  };
+
+  const expReq = getExpRequirement(player.stageIndex);
+  const progress = Math.min(100, (player.exp / expReq) * 100);
+
+  return (
+    <div className="flex flex-col items-center gap-4 p-4 w-full max-w-5xl mx-auto h-full font-pixel">
+      {/* Header */}
+      <div className="flex justify-between w-full items-center bg-black/40 p-3 pixel-border border-arcade-blue">
+        <h1 className="text-arcade-blue text-lg">凡人修仙传</h1>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowResetConfirm(true)} 
+            className="pixel-button !py-1 !px-3 !text-[10px] !bg-arcade-pink/20 hover:!bg-arcade-pink/40"
+          >
+            重置存档
+          </button>
+          <button 
+            onClick={() => setIsPaused(!isPaused)} 
+            className="pixel-button !py-1 !px-3 !text-[10px]"
+          >
+            {isPaused ? '继续' : '暂停'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full flex-1 min-h-0">
+        {/* Left Panel: Status */}
+        <div className="md:col-span-4 bg-black/60 p-4 pixel-border border-arcade-yellow flex flex-col gap-4 overflow-y-auto">
+          <div className="flex items-center gap-3 border-b border-white/10 pb-2">
+            <div className="w-12 h-12 bg-arcade-purple pixel-border flex items-center justify-center text-xl">
+              修
+            </div>
+            <div>
+              <div className="text-arcade-yellow text-sm">{player.name}</div>
+              <div className="text-white/60 text-[10px]">名号：初入仙途</div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span className="text-arcade-green">当前境界: {getRealmName(player.stageIndex)}</span>
+                <span className="text-white/40">{Math.floor(player.exp)} / {expReq}</span>
+              </div>
+              <div className="w-full h-3 bg-black/80 pixel-border border-black overflow-hidden">
+                <div 
+                  className="h-full bg-arcade-green transition-all duration-300" 
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">灵石</div>
+                <div className="text-arcade-yellow">{Math.floor(player.stones)}</div>
+              </div>
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">修炼效率</div>
+                <div className="text-arcade-blue">x{(1 + player.elixirCount * 0.5).toFixed(1)}</div>
+              </div>
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">攻击力</div>
+                <div className="text-arcade-pink">{player.attack}</div>
+              </div>
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">防御力</div>
+                <div className="text-arcade-blue">{player.defense}</div>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-white/40 bg-black/20 p-2 rounded italic">
+              自动修为: +{getIdleExp().toFixed(1)} /秒
+            </div>
+          </div>
+
+          {/* NPC Section */}
+          <div className="mt-auto pt-4 border-t border-white/10">
+            <div className="flex gap-2 items-start">
+              <div className="w-8 h-8 bg-gray-700 pixel-border flex-shrink-0 flex items-center justify-center text-xs">👴</div>
+              <div className="text-[9px] text-arcade-blue leading-relaxed">
+                <span className="text-white/40 block mb-1">戒指里的老爷爷：</span>
+                "{npcQuote}"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel: Modules */}
+        <div className="md:col-span-8 flex flex-col gap-4 min-h-0">
+          {/* Tabs */}
+          <div className="flex gap-1">
+            {(['cultivate', 'adventure', 'abode', 'market'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-[10px] pixel-border transition-colors ${
+                  activeTab === tab 
+                  ? 'bg-arcade-blue text-white border-arcade-blue' 
+                  : 'bg-black/40 text-white/40 border-white/10 hover:bg-black/60'
+                }`}
+              >
+                {tab === 'cultivate' && '修行'}
+                {tab === 'adventure' && '历练'}
+                {tab === 'abode' && '洞府'}
+                {tab === 'market' && '坊市'}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 bg-black/60 p-6 pixel-border border-white/10 overflow-y-auto">
+            {activeTab === 'cultivate' && (
+              <div className="flex flex-col items-center justify-center h-full gap-8">
+                <div className="relative">
+                  <div className="w-32 h-32 bg-arcade-blue/20 rounded-full animate-pulse flex items-center justify-center">
+                    <div className="w-24 h-24 bg-arcade-blue/40 rounded-full animate-ping" />
+                  </div>
+                  <button 
+                    onClick={handleManualCultivate}
+                    className="absolute inset-0 flex items-center justify-center text-white font-pixel hover:scale-110 transition-transform"
+                  >
+                    闭关修炼
+                  </button>
+                </div>
+                
+                <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+                  <button 
+                    onClick={handleBreakthrough}
+                    disabled={player.exp < expReq}
+                    className={`w-full pixel-button ${player.exp < expReq ? 'opacity-50 grayscale cursor-not-allowed' : 'animate-bounce'}`}
+                  >
+                    突破境界 ({Math.floor(getBreakthroughChance() * 100)}% 成功率)
+                  </button>
+                  <p className="text-[9px] text-white/40 text-center">
+                    突破失败将扣除 30% 当前修为，请谨慎行事。
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'adventure' && (
+              <div className="flex flex-col h-full gap-4">
+                <div className="flex justify-center py-4">
+                  <button onClick={handleAdventure} className="pixel-button !px-12">
+                    外出冒险
+                  </button>
+                </div>
+                <div className="flex-1 bg-black/40 pixel-border border-white/5 p-3 overflow-y-auto font-mono text-[10px] space-y-2">
+                  <div className="text-arcade-blue border-b border-white/5 pb-1 mb-2">历练日志</div>
+                  {logs.map((log, i) => (
+                    <div key={i} className={`${i === 0 ? 'text-white' : 'text-white/40'}`}>
+                      {`> ${log}`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'abode' && (
+              <div className="space-y-6">
+                <div className="bg-black/40 p-4 pixel-border border-arcade-green">
+                  <h3 className="text-arcade-green text-sm mb-2">聚灵阵 (Lv.{player.arrayLevel})</h3>
+                  <p className="text-[10px] text-white/60 mb-4">
+                    通过在洞府中布置聚灵阵，可以大幅提升天地灵气的汇聚速度，实现自动增长修为。
+                  </p>
+                  <div className="flex justify-between items-center">
+                    <div className="text-[10px]">
+                      <div className="text-white/40">当前效果: +{getIdleExp().toFixed(1)} 修为/秒</div>
+                      <div className="text-arcade-green">升级后: +{(((player.arrayLevel + 1) * 2 + 1) * (1 + player.elixirCount * 0.5)).toFixed(1)} 修为/秒</div>
+                    </div>
+                    <button onClick={handleUpgradeArray} className="pixel-button !py-2 !px-4 !text-[10px]">
+                      升级 (需 {Math.floor(50 * Math.pow(1.8, player.arrayLevel))} 灵石)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'market' && (
+              <div className="space-y-6">
+                <div className="bg-black/40 p-4 pixel-border border-arcade-pink">
+                  <h3 className="text-arcade-pink text-sm mb-2">万宝阁 - 丹药</h3>
+                  <p className="text-[10px] text-white/60 mb-4">
+                    服用珍贵的丹药可以永久改善体质，提升对天地灵气的亲和力，从而增加修炼倍率。
+                  </p>
+                  <div className="flex justify-between items-center">
+                    <div className="text-[10px]">
+                      <div className="text-white/40">当前倍率: x{(1 + player.elixirCount * 0.5).toFixed(1)}</div>
+                      <div className="text-arcade-pink">下级倍率: x{(1 + (player.elixirCount + 1) * 0.5).toFixed(1)}</div>
+                    </div>
+                    <button onClick={handleBuyElixir} className="pixel-button !py-2 !px-4 !text-[10px]">
+                      购买 (需 {Math.floor(100 * Math.pow(2, player.elixirCount))} 灵石)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Instructions */}
+      <div className="w-full p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg">
+        <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">修仙指南</h3>
+        <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
+          <li>点击“闭关修炼”手动获得修为，修为满后可尝试“突破”。</li>
+          <li>“外出冒险”可以获得灵石，但也可能遭遇危险损失资源。</li>
+          <li>在“洞府”升级聚灵阵可获得挂机修为，在“坊市”购买丹药可提升修炼效率。</li>
+          <li>游戏会自动保存到本地，你可以随时回来继续你的长生之路。</li>
+        </ul>
+      </div>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#1a1a2e] pixel-border border-arcade-pink p-6 max-w-sm w-full text-center space-y-6">
+            <h3 className="text-arcade-pink font-pixel text-sm">确认重置？</h3>
+            <p className="text-[10px] text-white/60 leading-relaxed">
+              确定要清空所有修仙进度重新开始吗？<br />
+              此操作将永久删除你的存档，不可撤销！
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 pixel-button !bg-gray-600 !py-2"
+              >
+                取消
+              </button>
+              <button 
+                onClick={handleReset}
+                className="flex-1 pixel-button !bg-arcade-pink !py-2"
+              >
+                确定重置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

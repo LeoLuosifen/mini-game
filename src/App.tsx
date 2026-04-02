@@ -20,7 +20,8 @@ import {
   User,
   ArrowLeft,
   Puzzle as PuzzleIcon,
-  Grid3X3
+  Grid3X3,
+  Compass
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -31,6 +32,7 @@ import Runner from './games/Runner';
 import Shooter from './games/Shooter';
 import Puzzle from './games/Puzzle';
 import Match3 from './games/Match3';
+import Cultivation from './games/Cultivation';
 
 interface Game {
   id: string;
@@ -103,6 +105,16 @@ const GAMES: Game[] = [
     players: '2.8k',
     category: '益智',
     component: <Match3 />
+  },
+  {
+    id: 'cultivation',
+    title: '凡人修仙传',
+    description: '从凡人开始，历经磨难，最终成就大帝之位！',
+    icon: <Compass className="w-12 h-12" />,
+    color: 'bg-arcade-green',
+    players: '5.6k',
+    category: '冒险',
+    component: <Cultivation />
   }
 ];
 
@@ -234,7 +246,7 @@ export default function App() {
 
         {/* Categories */}
         <div className="flex flex-wrap gap-4 mb-8">
-          {['全部', '经典', '动作', '益智'].map((cat) => (
+          {['全部', '经典', '动作', '益智', '冒险'].map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
