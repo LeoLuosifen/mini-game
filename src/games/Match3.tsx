@@ -14,6 +14,7 @@ export default function Match3() {
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const nextId = useRef(0);
   const checkMatchesRef = useRef<() => void>(() => {});
 
@@ -129,7 +130,7 @@ export default function Match3() {
   }, [applyGravity]);
 
   const handleTileClick = (index: number) => {
-    if (isProcessing) return;
+    if (isProcessing || isPaused) return;
 
     if (selected === null) {
       setSelected(index);
@@ -190,7 +191,17 @@ export default function Match3() {
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
-      <div className="font-pixel text-xs text-arcade-yellow">分数: {score}</div>
+      <div className="flex justify-between w-full max-w-[400px] font-pixel text-[10px] items-center">
+        <div className="flex flex-col gap-1">
+          <span className="text-arcade-yellow">分数: {score}</span>
+          <button 
+            onClick={() => setIsPaused(!isPaused)} 
+            className="text-[8px] text-arcade-blue hover:text-white transition-colors text-left"
+          >
+            {isPaused ? '[ 继续 ]' : '[ 暂停 ]'}
+          </button>
+        </div>
+      </div>
       
       <div className="grid grid-cols-8 gap-1 bg-[#0a0a1a] p-1 border-4 border-black pixel-border relative overflow-hidden">
         {board.map((tile, i) => (
@@ -218,9 +229,24 @@ export default function Match3() {
             </AnimatePresence>
           </div>
         ))}
+        {isPaused && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+            <h2 className="font-pixel text-lg text-arcade-blue animate-pulse">已暂停</h2>
+          </div>
+        )}
       </div>
 
       <button onClick={createBoard} className="pixel-button mt-4">重置棋盘</button>
+
+      <div className="mt-6 p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg max-w-[400px] w-full">
+        <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">游戏说明</h3>
+        <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
+          <li>点击两个相邻的方块进行交换</li>
+          <li>三个或以上相同颜色的方块连成一线即可消除</li>
+          <li>消除后上方的方块会掉落填充空位</li>
+          <li>点击左上角可以暂停或继续游戏</li>
+        </ul>
+      </div>
     </div>
   );
 }

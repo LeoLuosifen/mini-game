@@ -6,19 +6,27 @@ export default function Runner() {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   
   const runnerRef = useRef<HTMLDivElement>(null);
   const gameLoopRef = useRef<number | null>(null);
   const obstacleIdRef = useRef(0);
 
   const jump = useCallback(() => {
-    if (isJumping || gameOver) return;
+    if (isJumping || gameOver || isPaused) return;
     setIsJumping(true);
     setTimeout(() => setIsJumping(false), 500);
-  }, [isJumping, gameOver]);
+  }, [isJumping, gameOver, isPaused]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'p' || e.key === 'P') {
+        if (gameStarted && !gameOver) {
+          setIsPaused(prev => !prev);
+        }
+        return;
+      }
+      if (isPaused) return;
       if (e.code === 'Space' || e.key === 'ArrowUp') {
         if (!gameStarted) setGameStarted(true);
         jump();
@@ -29,7 +37,7 @@ export default function Runner() {
   }, [jump, gameStarted]);
 
   useEffect(() => {
-    if (!gameStarted || gameOver) return;
+    if (!gameStarted || gameOver || isPaused) return;
 
     const loop = () => {
       setObstacles(prev => {
@@ -61,16 +69,32 @@ export default function Runner() {
     setObstacles([]);
     setScore(0);
     setGameOver(false);
+    setIsPaused(false);
     setGameStarted(true);
   };
 
   return (
     <div className="flex flex-col items-center gap-4 p-4 w-full h-full justify-center">
-      <div className="font-pixel text-xs text-arcade-yellow mb-2">分数: {Math.floor(score / 10)}</div>
+      <div className="flex justify-between w-full max-w-[600px] font-pixel text-xs items-center mb-2">
+        <div className="flex flex-col gap-1">
+          <span className="text-arcade-yellow">分数: {Math.floor(score / 10)}</span>
+          {gameStarted && !gameOver && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPaused(!isPaused);
+              }} 
+              className="text-[8px] text-arcade-blue hover:text-white transition-colors text-left"
+            >
+              {isPaused ? '[ 继续 ]' : '[ 暂停 ]'}
+            </button>
+          )}
+        </div>
+      </div>
       
       <div 
         className="relative bg-[#0a0a1a] border-4 border-black pixel-border overflow-hidden w-full max-w-[600px] h-[200px] cursor-pointer"
-        onClick={gameStarted ? jump : () => setGameStarted(true)}
+        onClick={gameStarted ? (isPaused ? undefined : jump) : () => setGameStarted(true)}
       >
         {/* Ground */}
         <div className="absolute bottom-0 w-full h-1 bg-arcade-blue" />
@@ -98,6 +122,12 @@ export default function Runner() {
           </div>
         )}
 
+        {isPaused && !gameOver && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+            <h2 className="font-pixel text-2xl text-arcade-blue animate-pulse">已暂停</h2>
+          </div>
+        )}
+
         {gameOver && (
           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-4">
             <h2 className="font-pixel text-arcade-pink">游戏结束</h2>
@@ -105,7 +135,16 @@ export default function Runner() {
           </div>
         )}
       </div>
-      <p className="text-gray-500 text-[10px] font-pixel">空格键或点击跳跃</p>
+      <p className="text-gray-500 text-[10px] font-pixel">空格键或点击跳跃，P键暂停</p>
+
+      <div className="mt-6 p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg max-w-[400px] w-full">
+        <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">游戏说明</h3>
+        <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
+          <li>按下空格键或点击屏幕进行跳跃</li>
+          <li>躲避地面上出现的绿色障碍物</li>
+          <li>坚持的时间越长，得分越高</li>
+        </ul>
+      </div>
     </div>
   );
 }

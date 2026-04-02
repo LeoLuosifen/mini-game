@@ -20,6 +20,7 @@ export default function Tetris() {
   const [pos, setPos] = useState({ x: 3, y: 0 });
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
 
   const spawnPiece = useCallback(() => {
@@ -79,7 +80,7 @@ export default function Tetris() {
   }, [activePiece, grid, pos, spawnPiece]);
 
   const move = useCallback((dir: { x: number, y: number }) => {
-    if (gameOver || !activePiece) return;
+    if (gameOver || isPaused || !activePiece) return;
     const newPos = { x: pos.x + dir.x, y: pos.y + dir.y };
     if (!checkCollision(activePiece.shape, newPos, grid)) {
       setPos(newPos);
@@ -89,7 +90,7 @@ export default function Tetris() {
   }, [activePiece, gameOver, grid, lockPiece, pos]);
 
   const rotate = useCallback(() => {
-    if (gameOver || !activePiece) return;
+    if (gameOver || isPaused || !activePiece) return;
     const rotated = activePiece.shape[0].map((_: any, i: number) =>
       activePiece.shape.map((row: any) => row[i]).reverse()
     );
@@ -104,6 +105,11 @@ export default function Tetris() {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'p' || e.key === 'P') {
+        setIsPaused(prev => !prev);
+        return;
+      }
+      if (isPaused) return;
       if (e.key === 'ArrowLeft') move({ x: -1, y: 0 });
       if (e.key === 'ArrowRight') move({ x: 1, y: 0 });
       if (e.key === 'ArrowDown') move({ x: 0, y: 1 });
@@ -114,23 +120,35 @@ export default function Tetris() {
   }, [move, rotate]);
 
   useEffect(() => {
+    if (gameOver || isPaused) return;
     gameLoopRef.current = window.setInterval(() => move({ x: 0, y: 1 }), 800);
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [move]);
+  }, [move, gameOver, isPaused]);
 
   const reset = () => {
     setGrid(Array(ROWS).fill(null).map(() => Array(COLS).fill(0)));
     setScore(0);
     setGameOver(false);
+    setIsPaused(false);
     setActivePiece(null);
   };
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
-      <div className="flex justify-between w-full max-w-[200px] font-pixel text-[10px]">
-        <span className="text-arcade-yellow">分数: {score}</span>
+      <div className="flex justify-between w-full max-w-[200px] font-pixel text-[10px] items-center">
+        <div className="flex flex-col gap-1">
+          <span className="text-arcade-yellow">分数: {score}</span>
+          {!gameOver && (
+            <button 
+              onClick={() => setIsPaused(!isPaused)} 
+              className="text-[8px] text-arcade-blue hover:text-white transition-colors text-left"
+            >
+              {isPaused ? '[ 继续 ]' : '[ 暂停 ]'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div 
@@ -164,6 +182,12 @@ export default function Tetris() {
           )
         )))}
 
+        {isPaused && !gameOver && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+            <h2 className="font-pixel text-lg text-arcade-blue animate-pulse">已暂停</h2>
+          </div>
+        )}
+
         {gameOver && (
           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-4 z-10">
             <h2 className="font-pixel text-lg text-arcade-pink">GAME OVER</h2>
@@ -179,6 +203,16 @@ export default function Tetris() {
         <button onClick={() => move({ x: -1, y: 0 })} className="pixel-button !p-3">←</button>
         <button onClick={() => move({ x: 0, y: 1 })} className="pixel-button !p-3">↓</button>
         <button onClick={() => move({ x: 1, y: 0 })} className="pixel-button !p-3">→</button>
+      </div>
+
+      <div className="mt-6 p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg max-w-[400px] w-full">
+        <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">游戏说明</h3>
+        <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
+          <li>左右方向键移动方块，上方向键旋转方块</li>
+          <li>下方向键加速下落，填满一行即可消除得分</li>
+          <li>按下 P 键可以暂停或继续游戏</li>
+          <li>不要让方块堆积到顶部，否则游戏结束</li>
+        </ul>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export default function Snake() {
   const [direction, setDirection] = useState(INITIAL_DIRECTION);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
   const directionRef = useRef(INITIAL_DIRECTION);
   const nextDirectionsRef = useRef<{ x: number; y: number }[]>([]);
@@ -23,6 +24,7 @@ export default function Snake() {
   }, []);
 
   const moveSnake = useCallback(() => {
+    if (isPaused) return;
     setSnake((prevSnake) => {
       // Process next direction from queue
       if (nextDirectionsRef.current.length > 0) {
@@ -62,6 +64,12 @@ export default function Snake() {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'p' || e.key === 'P') {
+        setIsPaused(prev => !prev);
+        return;
+      }
+      if (isPaused) return;
+      
       const lastDir = nextDirectionsRef.current.length > 0 
         ? nextDirectionsRef.current[nextDirectionsRef.current.length - 1] 
         : directionRef.current;
@@ -83,7 +91,7 @@ export default function Snake() {
   }, []);
 
   useEffect(() => {
-    if (gameOver) return;
+    if (gameOver || isPaused) return;
     gameLoopRef.current = window.setInterval(moveSnake, 120);
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
@@ -95,6 +103,7 @@ export default function Snake() {
     directionRef.current = INITIAL_DIRECTION;
     nextDirectionsRef.current = [];
     setGameOver(false);
+    setIsPaused(false);
     setScore(0);
     generateFood();
   };
@@ -113,8 +122,16 @@ export default function Snake() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-      <div className="flex justify-between w-full max-w-[400px] font-pixel text-xs">
-        <span className="text-arcade-yellow">分数: {score}</span>
+      <div className="flex justify-between w-full max-w-[400px] font-pixel text-xs items-center">
+        <div className="flex flex-col gap-1">
+          <span className="text-arcade-yellow">分数: {score}</span>
+          <button 
+            onClick={() => setIsPaused(!isPaused)} 
+            className="text-[8px] text-arcade-blue hover:text-white transition-colors text-left"
+          >
+            {isPaused ? '[ 继续 ]' : '[ 暂停 ]'}
+          </button>
+        </div>
         {gameOver && <span className="text-arcade-pink animate-pulse">游戏结束!</span>}
       </div>
 
@@ -154,6 +171,12 @@ export default function Snake() {
           }}
         />
 
+        {isPaused && !gameOver && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+            <h2 className="font-pixel text-2xl text-arcade-blue animate-pulse">已暂停</h2>
+          </div>
+        )}
+
         {gameOver && (
           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-6 z-10">
             <h2 className="font-pixel text-2xl text-arcade-pink">GAME OVER</h2>
@@ -172,7 +195,16 @@ export default function Snake() {
         <button onClick={() => handleDirectionChange({ x: 1, y: 0 })} className="pixel-button !p-4">→</button>
       </div>
       
-      <p className="text-gray-500 text-xs font-pixel">使用方向键控制移动</p>
+      <p className="text-gray-500 text-xs font-pixel">使用方向键控制移动，P键暂停</p>
+
+      <div className="mt-6 p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg max-w-[400px] w-full">
+        <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">游戏说明</h3>
+        <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
+          <li>使用键盘方向键控制蛇的移动方向</li>
+          <li>吃掉粉色食物增长身体并得分</li>
+          <li>不要撞到墙壁或自己的身体</li>
+        </ul>
+      </div>
     </div>
   );
 }

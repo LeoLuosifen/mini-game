@@ -7,6 +7,7 @@ export default function Shooter() {
   const [enemies, setEnemies] = useState<{ id: number; x: number; y: number }[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   
   const gameLoopRef = useRef<number | null>(null);
   const bulletIdRef = useRef(0);
@@ -20,6 +21,11 @@ export default function Shooter() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'p' || e.key === 'P') {
+        setIsPaused(prev => !prev);
+        return;
+      }
+      if (isPaused) return;
       keysPressed.current.add(e.key);
       if (e.key === ' ' || e.key === 'ArrowUp') shoot();
     };
@@ -35,7 +41,7 @@ export default function Shooter() {
   }, [shoot]);
 
   useEffect(() => {
-    if (gameOver) return;
+    if (gameOver || isPaused) return;
 
     const loop = () => {
       // Handle movement
@@ -106,12 +112,23 @@ export default function Shooter() {
     setEnemies([]);
     setScore(0);
     setGameOver(false);
+    setIsPaused(false);
     setPlayerX(50);
   };
 
   return (
     <div className="flex flex-col items-center gap-4 p-4 w-full h-full">
-      <div className="font-pixel text-xs text-arcade-yellow">分数: {score}</div>
+      <div className="flex justify-between w-full max-w-[400px] font-pixel text-xs items-center">
+        <div className="flex flex-col gap-1">
+          <span className="text-arcade-yellow">分数: {score}</span>
+          <button 
+            onClick={() => setIsPaused(!isPaused)} 
+            className="text-[8px] text-arcade-blue hover:text-white transition-colors text-left"
+          >
+            {isPaused ? '[ 继续 ]' : '[ 暂停 ]'}
+          </button>
+        </div>
+      </div>
       
       <div className="relative bg-[#0a0a1a] border-4 border-black pixel-border w-full max-w-[400px] h-[400px] overflow-hidden">
         {/* Player */}
@@ -139,6 +156,12 @@ export default function Shooter() {
             style={{ left: `${e.x}%`, top: `${e.y}%` }}
           />
         ))}
+
+        {isPaused && !gameOver && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+            <h2 className="font-pixel text-2xl text-arcade-blue animate-pulse">已暂停</h2>
+          </div>
+        )}
 
         {gameOver && (
           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-4">
@@ -169,7 +192,16 @@ export default function Shooter() {
           →
         </button>
       </div>
-      <p className="text-gray-500 text-[10px] font-pixel">左右键移动，空格射击</p>
+      <p className="text-gray-500 text-[10px] font-pixel">左右键移动，空格射击，P键暂停</p>
+
+      <div className="mt-6 p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg max-w-[400px] w-full">
+        <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">游戏说明</h3>
+        <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
+          <li>使用键盘左右方向键控制战机移动</li>
+          <li>按下空格键或上方向键发射子弹</li>
+          <li>击毁敌机得分，避免被敌机撞击</li>
+        </ul>
+      </div>
     </div>
   );
 }
