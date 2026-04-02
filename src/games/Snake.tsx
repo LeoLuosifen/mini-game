@@ -11,6 +11,8 @@ export default function Snake() {
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const gameLoopRef = useRef<number | null>(null);
+  const directionRef = useRef(INITIAL_DIRECTION);
+  const nextDirectionsRef = useRef<{ x: number; y: number }[]>([]);
 
   const generateFood = useCallback(() => {
     const newFood = {
@@ -21,10 +23,16 @@ export default function Snake() {
   }, []);
 
   const moveSnake = useCallback(() => {
-    if (gameOver) return;
-
     setSnake((prevSnake) => {
-      const head = { x: prevSnake[0].x + direction.x, y: prevSnake[0].y + direction.y };
+      // Process next direction from queue
+      if (nextDirectionsRef.current.length > 0) {
+        directionRef.current = nextDirectionsRef.current.shift()!;
+      }
+      
+      const head = { 
+        x: prevSnake[0].x + directionRef.current.x, 
+        y: prevSnake[0].y + directionRef.current.y 
+      };
 
       // Wall collision
       if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
@@ -50,34 +58,57 @@ export default function Snake() {
 
       return newSnake;
     });
-  }, [direction, food, gameOver, generateFood]);
+  }, [food, generateFood]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      const lastDir = nextDirectionsRef.current.length > 0 
+        ? nextDirectionsRef.current[nextDirectionsRef.current.length - 1] 
+        : directionRef.current;
+
+      let nextDir = null;
       switch (e.key) {
-        case 'ArrowUp': if (direction.y === 0) setDirection({ x: 0, y: -1 }); break;
-        case 'ArrowDown': if (direction.y === 0) setDirection({ x: 0, y: 1 }); break;
-        case 'ArrowLeft': if (direction.x === 0) setDirection({ x: -1, y: 0 }); break;
-        case 'ArrowRight': if (direction.x === 0) setDirection({ x: 1, y: 0 }); break;
+        case 'ArrowUp': if (lastDir.y === 0) nextDir = { x: 0, y: -1 }; break;
+        case 'ArrowDown': if (lastDir.y === 0) nextDir = { x: 0, y: 1 }; break;
+        case 'ArrowLeft': if (lastDir.x === 0) nextDir = { x: -1, y: 0 }; break;
+        case 'ArrowRight': if (lastDir.x === 0) nextDir = { x: 1, y: 0 }; break;
+      }
+
+      if (nextDir && nextDirectionsRef.current.length < 2) {
+        nextDirectionsRef.current.push(nextDir);
       }
     };
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [direction]);
+  }, []);
 
   useEffect(() => {
-    gameLoopRef.current = window.setInterval(moveSnake, 150);
+    if (gameOver) return;
+    gameLoopRef.current = window.setInterval(moveSnake, 120);
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [moveSnake]);
+  }, [moveSnake, gameOver]);
 
   const resetGame = () => {
     setSnake(INITIAL_SNAKE);
-    setDirection(INITIAL_DIRECTION);
+    directionRef.current = INITIAL_DIRECTION;
+    nextDirectionsRef.current = [];
     setGameOver(false);
     setScore(0);
     generateFood();
+  };
+
+  const handleDirectionChange = (newDir: { x: number; y: number }) => {
+    const lastDir = nextDirectionsRef.current.length > 0 
+      ? nextDirectionsRef.current[nextDirectionsRef.current.length - 1] 
+      : directionRef.current;
+
+    if ((newDir.x !== 0 && lastDir.x === 0) || (newDir.y !== 0 && lastDir.y === 0)) {
+      if (nextDirectionsRef.current.length < 2) {
+        nextDirectionsRef.current.push(newDir);
+      }
+    }
   };
 
   return (
@@ -107,7 +138,6 @@ export default function Snake() {
               height: 20,
               left: segment.x * 20,
               top: segment.y * 20,
-              transition: 'all 0.1s'
             }}
           />
         ))}
@@ -135,11 +165,11 @@ export default function Snake() {
 
       <div className="grid grid-cols-3 gap-2 md:hidden">
         <div />
-        <button onClick={() => direction.y === 0 && setDirection({ x: 0, y: -1 })} className="pixel-button !p-4">↑</button>
+        <button onClick={() => handleDirectionChange({ x: 0, y: -1 })} className="pixel-button !p-4">↑</button>
         <div />
-        <button onClick={() => direction.x === 0 && setDirection({ x: -1, y: 0 })} className="pixel-button !p-4">←</button>
-        <button onClick={() => direction.y === 0 && setDirection({ x: 0, y: 1 })} className="pixel-button !p-4">↓</button>
-        <button onClick={() => direction.x === 0 && setDirection({ x: 1, y: 0 })} className="pixel-button !p-4">→</button>
+        <button onClick={() => handleDirectionChange({ x: -1, y: 0 })} className="pixel-button !p-4">←</button>
+        <button onClick={() => handleDirectionChange({ x: 0, y: 1 })} className="pixel-button !p-4">↓</button>
+        <button onClick={() => handleDirectionChange({ x: 1, y: 0 })} className="pixel-button !p-4">→</button>
       </div>
       
       <p className="text-gray-500 text-xs font-pixel">使用方向键控制移动</p>
