@@ -81,7 +81,7 @@ const MARKET_POOL = [
 
 const WORK_TASKS = [
   { name: "打扫炼丹房", difficulty: "简单", rewardBase: 30, desc: "虽然辛苦，但偶尔能闻到丹香，令人神清气爽。" },
-  { name: "看守宗门", difficulty: "简单", rewardBase: 50, desc: "枯燥的差事，但胜在安全稳妥。" },
+  { name: "看守药园", difficulty: "简单", rewardBase: 50, desc: "枯燥的差事，但胜在安全稳妥。" },
   { name: "灵田除草", difficulty: "简单", rewardBase: 40, desc: "小心那些会咬人的灵草，它们可不安分。" },
   { name: "后山采药", difficulty: "普通", rewardBase: 150, desc: "需要避开一些低级妖兽，有一定风险。" },
   { name: "驱赶灵兽", difficulty: "普通", rewardBase: 200, desc: "那些调皮的灵鹤总是乱跑，真让人头疼。" },
@@ -421,24 +421,69 @@ export default function Cultivation() {
     addLog(`购买成功：获得了 ${item.name}！`);
   };
 
-  const handleDoWork = (task: any, index: number) => {
-    if (isPaused) return;
+  const handleDoWork = (taskSlot: any, index: number) => {
+    if (isPaused || taskSlot.status !== 'available') return;
     
-    // Reward scales with major realm
-    const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
-    const reward = Math.floor(task.rewardBase * majorRealmLevel * (0.8 + Math.random() * 0.4));
-    
-    setPlayer(prev => {
-      const next = { ...prev, stones: prev.stones + reward };
-      saveGame(next);
+    // Check if there's already a task being worked on
+    const isWorking = availableTasks.some(slot => slot.status === 'working');
+    if (isWorking) {
+      addLog("你已经在处理一个任务了，分身乏术！先把手头的活干完。");
+      setNpcQuote("贪多嚼不烂，小子，先把手头的活干完再说！");
+      return;
+    }
+
+    const workTime = taskSlot.task.difficulty === '简单' ? 5 : 
+                     taskSlot.task.difficulty === '普通' ? 15 : 30;
+
+    setAvailableTasks(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], status: 'working', timer: workTime, totalTime: workTime };
       return next;
     });
 
-    addLog(`完成任务 [${task.name}]：${task.desc} 获得灵石 x${reward}。`);
-    
-    // Refresh tasks after one is done
-    refreshTasks();
+    addLog(`你接取了任务 [${taskSlot.task.name}]，开始着手处理...`);
   };
+
+  const completeWork = useCallback((index: number) => {
+    setAvailableTasks(prev => {
+      const taskSlot = prev[index];
+      if (!taskSlot || taskSlot.status !== 'completed_pending') return prev;
+
+      // Reward scales with major realm
+      const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
+      const reward = Math.floor(taskSlot.task.rewardBase * majorRealmLevel * (0.8 + Math.random() * 0.4));
+      
+      setPlayer(p => {
+        const next = { ...p, stones: p.stones + reward };
+        saveGame(next);
+        return next;
+      });
+
+      addLog(`完成任务 [${taskSlot.task.name}]：${taskSlot.task.desc} 获得灵石 x${reward}。`);
+      
+      const cooldownTime = taskSlot.task.difficulty === '简单' ? 10 : 
+                           taskSlot.task.difficulty === '普通' ? 30 : 60;
+
+      const next = [...prev];
+      next[index] = { ...taskSlot, status: 'cooldown', timer: cooldownTime, totalTime: cooldownTime };
+      return next;
+    });
+  }, [player.stageIndex, saveGame]);
+
+  const replaceTask = useCallback((index: number) => {
+    setAvailableTasks(prev => {
+      const taskSlot = prev[index];
+      if (!taskSlot || taskSlot.status !== 'replace_pending') return prev;
+
+      const currentTaskNames = prev.map(s => s.task.name);
+      const pool = WORK_TASKS.filter(t => !currentTaskNames.includes(t.name));
+      const newTask = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : WORK_TASKS[Math.floor(Math.random() * WORK_TASKS.length)];
+      
+      const next = [...prev];
+      next[index] = { task: newTask, status: 'available', timer: 0, totalTime: 0 };
+      return next;
+    });
+  }, []);
 
   const refreshMarket = useCallback(() => {
     const count = 4 + Math.floor(Math.random() * 3);
@@ -478,7 +523,7 @@ export default function Cultivation() {
 
     for (let i = 0; i < count; i++) {
       if (pool.length === 0) break;
-      selected.push(pool.pop()!);
+      selected.push({ task: pool.pop()!, status: 'available', timer: 0, totalTime: 0 });
     }
     setAvailableTasks(selected);
   }, []);
@@ -499,9 +544,43 @@ export default function Cultivation() {
         }
         return prev - 1;
       });
+
+      // Handle Task Timers
+      setAvailableTasks(prev => {
+        let changed = false;
+        const next = prev.map((slot, idx) => {
+          if (slot.timer > 0) {
+            changed = true;
+            const newTimer = Math.max(0, slot.timer - 1);
+            if (newTimer === 0) {
+              if (slot.status === 'working') {
+                // We can't call completeWork here directly because of state closure
+                // So we'll handle completion in a separate effect or by status change
+                return { ...slot, status: 'completed_pending', timer: 0 };
+              } else if (slot.status === 'cooldown') {
+                return { ...slot, status: 'replace_pending', timer: 0 };
+              }
+            }
+            return { ...slot, timer: newTimer };
+          }
+          return slot;
+        });
+        return changed ? next : prev;
+      });
     }, 1000);
     return () => clearInterval(interval);
   }, [isPaused, refreshMarket]);
+
+  // Handle Task Completion and Replacement
+  useEffect(() => {
+    availableTasks.forEach((slot, i) => {
+      if (slot.status === 'completed_pending') {
+        completeWork(i);
+      } else if (slot.status === 'replace_pending') {
+        replaceTask(i);
+      }
+    });
+  }, [availableTasks, completeWork, replaceTask]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -782,35 +861,60 @@ export default function Cultivation() {
             {activeTab === 'tasks' && (
               <div className="space-y-4">
                 <div className="text-arcade-yellow text-xs border-b border-white/10 pb-2 flex justify-between">
-                  <span>宗门任务榜</span>
+                  <span>悬赏告示栏</span>
                   <span className="text-[8px] text-white/40">完成任务可获得灵石奖励</span>
                 </div>
                 <div className="grid gap-3">
-                  {availableTasks.map((task, i) => (
-                    <div key={i} className="bg-black/40 p-3 pixel-border border-white/10 flex justify-between items-center group hover:border-arcade-yellow transition-colors">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white text-[10px]">{task.name}</span>
-                          <span className={`text-[8px] px-1 ${
-                            task.difficulty === '简单' ? 'text-green-400' : 
-                            task.difficulty === '普通' ? 'text-blue-400' : 'text-red-400'
-                          }`}>[{task.difficulty}]</span>
+                  {availableTasks.map((slot, i) => (
+                    <div key={i} className="bg-black/40 p-3 pixel-border border-white/10 flex flex-col gap-2 group hover:border-arcade-yellow transition-colors relative overflow-hidden">
+                      {/* Progress Bar for Working/Cooldown */}
+                      {(slot.status === 'working' || slot.status === 'cooldown') && (
+                        <div 
+                          className={`absolute bottom-0 left-0 h-1 transition-all duration-1000 ${slot.status === 'working' ? 'bg-arcade-blue' : 'bg-gray-600'}`}
+                          style={{ width: `${(slot.timer / slot.totalTime) * 100}%` }}
+                        />
+                      )}
+
+                      <div className="flex justify-between items-center">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white text-[10px]">{slot.task.name}</span>
+                            <span className={`text-[8px] px-1 ${
+                              slot.task.difficulty === '简单' ? 'text-green-400' : 
+                              slot.task.difficulty === '普通' ? 'text-blue-400' : 'text-red-400'
+                            }`}>[{slot.task.difficulty}]</span>
+                          </div>
+                          <p className="text-[8px] text-white/40">{slot.task.desc}</p>
                         </div>
-                        <p className="text-[8px] text-white/40">{task.desc}</p>
-                      </div>
-                      <div className="text-right space-y-2">
-                        <div className="text-arcade-yellow text-[10px]">灵石 x{Math.floor(task.rewardBase * (Math.floor(player.stageIndex / 10) + 1))}</div>
-                        <button 
-                          onClick={() => handleDoWork(task, i)}
-                          className="pixel-button !py-1 !px-3 !text-[8px] !bg-arcade-yellow/20 hover:!bg-arcade-yellow/40"
-                        >
-                          接取
-                        </button>
+                        <div className="text-right space-y-2">
+                          <div className="text-arcade-yellow text-[10px]">灵石 x{Math.floor(slot.task.rewardBase * (Math.floor(player.stageIndex / 10) + 1))}</div>
+                          
+                          {slot.status === 'available' && (
+                            <button 
+                              onClick={() => handleDoWork(slot, i)}
+                              className="pixel-button !py-1 !px-3 !text-[8px] !bg-arcade-yellow/20 hover:!bg-arcade-yellow/40"
+                            >
+                              接取
+                            </button>
+                          )}
+                          
+                          {slot.status === 'working' && (
+                            <div className="text-[8px] text-arcade-blue animate-pulse">
+                              处理中 ({slot.timer}s)
+                            </div>
+                          )}
+
+                          {slot.status === 'cooldown' && (
+                            <div className="text-[8px] text-white/20">
+                              冷却中 ({slot.timer}s)
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p className="text-[8px] text-white/20 italic text-center">任务完成后会自动刷新榜单...</p>
+                <p className="text-[8px] text-white/20 italic text-center">任务完成后该栏位会进入冷却并刷新...</p>
               </div>
             )}
 
