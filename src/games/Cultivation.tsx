@@ -30,7 +30,8 @@ export default function Cultivation() {
       defense: 5,
       hp: 100,
       maxHp: 100,
-      savvy: 10
+      savvy: 10,
+      inventory: {}
     };
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -91,8 +92,8 @@ export default function Cultivation() {
   };
 
   const getIdleExp = () => {
-    // Significantly reduced base gain
-    const baseGain = (player.arrayLevel * 0.5 + 0.1);
+    // Balanced base gain: 0.1 -> 0.3 -> 0.5 -> ...
+    const baseGain = (player.arrayLevel * 0.2 + 0.1);
     return baseGain * (1 + player.elixirCount * 0.2) * ((player.savvy || 10) / 10);
   };
 
@@ -101,13 +102,28 @@ export default function Cultivation() {
     return baseGain * (1 + player.elixirCount * 0.2) * ((player.savvy || 10) / 10);
   };
 
-  const getTaskSuccessChance = (difficulty: string) => {
+  const getTaskSuccessChance = useCallback((difficulty: string) => {
     if (difficulty === '简单') return 1.0;
-    const stageBonus = player.stageIndex / 200; // Level bonus
-    if (difficulty === '普通') return Math.min(0.95, 0.6 + stageBonus);
-    if (difficulty === '困难') return Math.min(0.9, 0.3 + stageBonus);
+    
+    // Great Emperor realm (stageIndex >= 91) has 100% success rate
+    if (player.stageIndex >= 91) return 1.0;
+
+    // Scaling factor based on progress towards Great Emperor
+    const progress = player.stageIndex / 91;
+    
+    // Random jitter between -0.08 and +0.08 to make it non-fixed
+    const jitter = (Math.random() * 0.16) - 0.08;
+
+    if (difficulty === '普通') {
+      // Min 50%, scales up to 100% at Great Emperor, with jitter
+      return Math.min(1.0, Math.max(0.5, 0.5 + (progress * 0.5) + jitter));
+    }
+    if (difficulty === '困难') {
+      // Min 40%, scales up to 100% at Great Emperor, with jitter
+      return Math.min(1.0, Math.max(0.4, 0.4 + (progress * 0.6) + jitter));
+    }
     return 1.0;
-  };
+  }, [player.stageIndex]);
   const getBreakthroughChance = () => {
     if (player.stageIndex === 0) return 1; // 凡人必过
     const isMajor = player.stageIndex % 10 === 0;
@@ -282,10 +298,24 @@ export default function Cultivation() {
   };
 
   const handleUpgradeArray = () => {
-    const cost = Math.floor(50 * Math.pow(1.8, player.arrayLevel));
-    // Use Low-grade for early levels, High-grade for later
-    const currency = player.arrayLevel < 5 ? 'stonesLow' : 'stonesHigh';
-    const currencyName = currency === 'stonesLow' ? '下品灵石' : '高级灵石';
+    if (isPaused) return;
+    
+    let cost = 0;
+    let currency: 'stonesLow' | 'stonesHigh' | 'stonesTop' = 'stonesLow';
+    
+    // Tiered upgrade system
+    if (player.arrayLevel < 10) {
+      cost = Math.floor(100 * Math.pow(1.5, player.arrayLevel));
+      currency = 'stonesLow';
+    } else if (player.arrayLevel < 20) {
+      cost = Math.floor(50 * Math.pow(1.5, player.arrayLevel - 10));
+      currency = 'stonesHigh';
+    } else {
+      cost = Math.floor(20 * Math.pow(1.5, player.arrayLevel - 20));
+      currency = 'stonesTop';
+    }
+
+    const currencyName = currency === 'stonesLow' ? '下品灵石' : currency === 'stonesHigh' ? '高级灵石' : '极品灵石';
     
     if (player[currency] < cost) {
       addLog(`${currencyName}不足，无法升级聚灵阵！`);
@@ -312,8 +342,51 @@ export default function Cultivation() {
       return;
     }
 
+    const currentCount = player.inventory[item.id] || 0;
+    if (currentCount >= 99) {
+      addLog(`[${item.name}] 已达上限 (99)，无法购买更多！`);
+      return;
+    }
+
     setPlayer(prev => {
-      const next = { ...prev, [currencyKey]: prev[currencyKey] - item.cost };
+      const next = { 
+        ...prev, 
+        [currencyKey]: prev[currencyKey] - item.cost,
+        inventory: {
+          ...prev.inventory,
+          [item.id]: (prev.inventory[item.id] || 0) + 1
+        }
+      };
+      saveGame(next);
+      return next;
+    });
+
+    // Remove item from market after purchase
+    const newMarket = [...marketItems];
+    newMarket.splice(index, 1);
+    setMarketItems(newMarket);
+    addLog(`购买成功：${item.name} 已存入背包！`);
+  };
+
+  const handleUseItem = (itemId: string) => {
+    if (isPaused) return;
+    const item = MARKET_POOL.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (!player.inventory[itemId] || player.inventory[itemId] <= 0) {
+      addLog("物品不足，无法使用！");
+      return;
+    }
+
+    setPlayer(prev => {
+      const next = { 
+        ...prev,
+        inventory: {
+          ...prev.inventory,
+          [itemId]: prev.inventory[itemId] - 1
+        }
+      };
+      
       if (item.effect.elixir) next.elixirCount += item.effect.elixir;
       if (item.effect.savvy) next.savvy += item.effect.savvy;
       if (item.effect.hp) {
@@ -327,11 +400,7 @@ export default function Cultivation() {
       return next;
     });
 
-    // Remove item from market after purchase
-    const newMarket = [...marketItems];
-    newMarket.splice(index, 1);
-    setMarketItems(newMarket);
-    addLog(`购买成功：获得了 ${item.name}！`);
+    addLog(`使用了 [${item.name}]：${item.desc}`);
   };
 
   const handleDoWork = (taskSlot: any, index: number) => {
@@ -362,7 +431,8 @@ export default function Cultivation() {
       const taskSlot = prev[index];
       if (!taskSlot || taskSlot.status !== 'completed_pending') return prev;
 
-      const successChance = getTaskSuccessChance(taskSlot.task.difficulty);
+      // Use the stored success chance instead of calculating it fresh
+      const successChance = taskSlot.successChance ?? getTaskSuccessChance(taskSlot.task.difficulty);
       const isSuccess = Math.random() < successChance;
 
       if (isSuccess) {
@@ -418,10 +488,11 @@ export default function Cultivation() {
       }
 
       const next = [...prev];
-      next[index] = { task: newTask, status: 'available', timer: 0, totalTime: 0, stoneType };
+      const successChance = getTaskSuccessChance(newTask.difficulty);
+      next[index] = { task: newTask, status: 'available', timer: 0, totalTime: 0, stoneType, successChance };
       return next;
     });
-  }, []);
+  }, [getTaskSuccessChance]);
 
   const refreshMarket = useCallback(() => {
     const count = 4 + Math.floor(Math.random() * 3);
@@ -473,10 +544,11 @@ export default function Cultivation() {
       } else {
         stoneType = 'top';
       }
-      selected.push({ task, status: 'available', timer: 0, totalTime: 0, stoneType });
+      const successChance = getTaskSuccessChance(task.difficulty);
+      selected.push({ task, status: 'available', timer: 0, totalTime: 0, stoneType, successChance });
     }
     setAvailableTasks(selected);
-  }, []);
+  }, [getTaskSuccessChance]);
 
   // --- Effects ---
   useEffect(() => {
@@ -735,7 +807,7 @@ export default function Cultivation() {
         <div className="md:col-span-8 flex flex-col gap-4 min-h-0">
           {/* Tabs */}
           <div className="flex gap-1">
-            {(['cultivate', 'adventure', 'tasks', 'abode', 'market'] as const).map(tab => (
+            {(['cultivate', 'adventure', 'tasks', 'abode', 'market', 'inventory'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -750,6 +822,7 @@ export default function Cultivation() {
                 {tab === 'tasks' && '打工'}
                 {tab === 'abode' && '洞府'}
                 {tab === 'market' && '坊市'}
+                {tab === 'inventory' && '背包'}
               </button>
             ))}
           </div>
@@ -818,12 +891,54 @@ export default function Cultivation() {
                   <div className="flex justify-between items-center">
                     <div className="text-[10px]">
                       <div className="text-white/40">当前效果: +{getIdleExp().toFixed(1)} 修为/秒</div>
-                      <div className="text-arcade-green">升级后: +{(((player.arrayLevel + 1) * 2 + 1) * (1 + player.elixirCount * 0.5)).toFixed(1)} 修为/秒</div>
+                      <div className="text-arcade-green">升级后: +{(( (player.arrayLevel + 1) * 0.2 + 0.1 ) * (1 + player.elixirCount * 0.2) * (player.savvy / 10)).toFixed(1)} 修为/秒</div>
                     </div>
                     <button onClick={handleUpgradeArray} className="pixel-button !py-2 !px-4 !text-[10px]">
-                      升级 (需 {Math.floor(50 * Math.pow(1.8, player.arrayLevel))} 灵石)
+                      升级 (需 {
+                        player.arrayLevel < 10 ? Math.floor(100 * Math.pow(1.5, player.arrayLevel)) :
+                        player.arrayLevel < 20 ? Math.floor(50 * Math.pow(1.5, player.arrayLevel - 10)) :
+                        Math.floor(20 * Math.pow(1.5, player.arrayLevel - 20))
+                      } {
+                        player.arrayLevel < 10 ? '下品灵石' :
+                        player.arrayLevel < 20 ? '高级灵石' : '极品灵石'
+                      })
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'inventory' && (
+              <div className="space-y-4">
+                <div className="text-arcade-blue text-xs border-b border-white/10 pb-2 flex justify-between">
+                  <span>储物袋</span>
+                  <span className="text-[8px] text-white/40">点击物品即可使用</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(player.inventory).filter(([_, count]) => (count as number) > 0).map(([itemId, count]) => {
+                    const item = MARKET_POOL.find(i => i.id === itemId);
+                    if (!item) return null;
+                    return (
+                      <div key={itemId} className="bg-black/40 p-3 pixel-border border-white/10 flex flex-col gap-2 group hover:border-arcade-blue transition-colors relative">
+                        <div className="flex justify-between items-start">
+                          <div className="text-white text-[10px]">{item.name}</div>
+                          <div className="text-arcade-blue text-[10px]">x{count as number}</div>
+                        </div>
+                        <p className="text-[8px] text-white/40 line-clamp-2">{item.desc}</p>
+                        <button 
+                          onClick={() => handleUseItem(itemId)}
+                          className="pixel-button !py-1 !px-3 !text-[8px] !bg-arcade-blue/20 hover:!bg-arcade-blue/40 mt-2"
+                        >
+                          使用
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {Object.values(player.inventory).every(count => (count as number) === 0) && (
+                    <div className="col-span-2 py-12 text-center text-white/20 text-[10px]">
+                      储物袋空空如也...
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -864,7 +979,7 @@ export default function Cultivation() {
                             {slot.stoneType === 'low' ? '下品' : slot.stoneType === 'high' ? '高级' : '极品'}灵石 x{Math.floor(slot.task.rewardBase * (Math.floor(player.stageIndex / 10) + 1))}
                           </div>
                           <div className="text-[8px] text-white/30">
-                            成功率: {Math.floor(getTaskSuccessChance(slot.task.difficulty) * 100)}%
+                            成功率: {Math.floor((slot.successChance ?? getTaskSuccessChance(slot.task.difficulty)) * 100)}%
                           </div>
                           
                           {slot.status === 'available' && (

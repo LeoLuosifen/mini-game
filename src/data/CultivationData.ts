@@ -158,6 +158,7 @@ export interface PlayerData {
   hp: number;
   maxHp: number;
   savvy: number;
+  inventory: Record<string, number>;
 }
 
 export const STORAGE_KEY = 'pixel_joy_cultivation_save';
