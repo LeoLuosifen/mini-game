@@ -64,13 +64,83 @@ const EVENTS = {
   ]
 };
 
+const MARKET_POOL = [
+  { id: 'elixir_small', name: "小还丹", desc: "提升少量修炼效率", costBase: 100, effect: { elixir: 1 } },
+  { id: 'elixir_mid', name: "大还丹", desc: "提升中量修炼效率", costBase: 500, effect: { elixir: 3 } },
+  { id: 'elixir_large', name: "九转金丹", desc: "大幅提升修炼效率", costBase: 2000, effect: { elixir: 10 } },
+  { id: 'savvy_scroll', name: "悟道残页", desc: "提升少量悟性", costBase: 300, effect: { savvy: 2 } },
+  { id: 'savvy_book', name: "天书残卷", desc: "提升中量悟性", costBase: 1200, effect: { savvy: 8 } },
+  { id: 'hp_pill', name: "补血丹", desc: "提升气血上限", costBase: 200, effect: { hp: 50 } },
+  { id: 'hp_essence', name: "龙血精元", desc: "大幅提升气血上限", costBase: 1500, effect: { hp: 400 } },
+  { id: 'atk_stone', name: "磨刀石", desc: "提升攻击力", costBase: 400, effect: { attack: 10 } },
+  { id: 'atk_gem', name: "庚金之精", desc: "大幅提升攻击力", costBase: 1800, effect: { attack: 50 } },
+  { id: 'def_charm', name: "护身符", desc: "提升防御力", costBase: 400, effect: { defense: 5 } },
+  { id: 'def_shield', name: "玄武甲片", desc: "大幅提升防御力", costBase: 1800, effect: { defense: 25 } },
+  { id: 'array_guide', name: "阵法心得", desc: "提升聚灵阵效率（额外加成）", costBase: 1000, effect: { elixir: 5 } }
+];
+
+const WORK_TASKS = [
+  { name: "打扫炼丹房", difficulty: "简单", rewardBase: 30, desc: "虽然辛苦，但偶尔能闻到丹香，令人神清气爽。" },
+  { name: "看守宗门", difficulty: "简单", rewardBase: 50, desc: "枯燥的差事，但胜在安全稳妥。" },
+  { name: "灵田除草", difficulty: "简单", rewardBase: 40, desc: "小心那些会咬人的灵草，它们可不安分。" },
+  { name: "后山采药", difficulty: "普通", rewardBase: 150, desc: "需要避开一些低级妖兽，有一定风险。" },
+  { name: "驱赶灵兽", difficulty: "普通", rewardBase: 200, desc: "那些调皮的灵鹤总是乱跑，真让人头疼。" },
+  { name: "整理经阁", difficulty: "普通", rewardBase: 180, desc: "在书海中寻找遗失的卷轴，或许能增长见识。" },
+  { name: "押送货运", difficulty: "困难", rewardBase: 600, desc: "路途遥远，且常有劫匪出没，非强者不可为。" },
+  { name: "镇压魔窟", difficulty: "困难", rewardBase: 1000, desc: "九死一生的任务，但奖励极其丰厚。" },
+  { name: "猎杀悬赏", difficulty: "困难", rewardBase: 800, desc: "目标是为祸一方的凶兽，需要极强的战斗力。" }
+];
+
 const OLD_MAN_QUOTES = [
   "小子，就你这速度，老夫当年闭着眼都比你快！",
   "不错，这根骨虽然一般，但胜在心性坚定。",
   "快点突破，老夫还等着你重塑肉身呢！",
   "别整天想着奇遇，脚踏实地才是正道。",
-  "哎，现在的年轻人，真是一代不如一代了..."
+  "哎，现在的年轻人，真是一代不如一代了...",
+  "修炼一途，如逆水行舟，不进则退啊。",
+  "这方天地的灵气，似乎比老夫那个时代稀薄了不少。",
+  "道心不稳，万事皆空，你要时刻自省。",
+  "修仙不只是打打杀杀，更多的是对天道的感悟。",
+  "老夫当年纵横寰宇时，你祖宗还没出生呢！"
 ];
+
+const CONDITIONAL_QUOTES = {
+  highStones: [
+    "怀揣这么多灵石作甚？赶紧去坊市换点有用的丹药！",
+    "财不露白，小心被那些邪修盯上，去万宝阁消费一番吧。",
+    "灵石只是身外之物，转化为实力才是硬道理。",
+    "这么多灵石，老夫看着都眼红，可惜老夫现在只是个魂体。"
+  ],
+  consecutiveFails: [
+    "胜败乃兵家常事，莫要灰心，稳固道心再试一次。",
+    "看来是心魔作祟，去历练一番放松下心情再突破吧。",
+    "突破失败也是一种磨炼，老夫当年也曾数次折戟。",
+    "别急着突破，欲速则不达，先去打打工赚点灵石买点丹药补补。"
+  ],
+  lowEfficiency: [
+    "这聚灵阵也太简陋了，简直是在浪费时间！",
+    "就这灵气浓度，你还想修成大帝？赶紧升级阵法！",
+    "老夫看着这阵法都心疼，去洞府里捯饬捯饬吧。",
+    "工欲善其事，必先利其器，阵法不行，修炼再勤也是白搭。"
+  ],
+  lowHp: [
+    "气血亏损如此严重，还不赶紧闭关调养？",
+    "命都没了还修什么仙？快去休息！",
+    "你这副残躯，怕是连只疾风狼都打不过。",
+    "脸色这么难看，是不是又去招惹那些惹不起的妖兽了？"
+  ],
+  highSavvy: [
+    "这悟性，倒是有老夫当年的几分风采。",
+    "灵台清明，悟性极佳，是个修仙的好苗子。",
+    "悟性虽高，也需勤加修炼，莫要荒废了天赋。",
+    "天纵奇才啊，老夫果然没看错人。"
+  ],
+  marketRefresh: [
+    "坊市那边似乎来了批新货，小子，不去凑凑热闹？",
+    "万宝阁钟声响了，看来是有好东西上架了。",
+    "去坊市转转吧，说不定能捡到什么漏。"
+  ]
+};
 
 interface PlayerData {
   name: string;
@@ -133,10 +203,14 @@ export default function Cultivation() {
   };
 
   const [logs, setLogs] = useState<string[]>(["欢迎来到修仙世界，开始你的长生之路吧。"]);
-  const [activeTab, setActiveTab] = useState<'cultivate' | 'adventure' | 'abode' | 'market'>('cultivate');
+  const [activeTab, setActiveTab] = useState<'cultivate' | 'adventure' | 'abode' | 'market' | 'tasks'>('cultivate');
   const [isPaused, setIsPaused] = useState(false);
   const [showReincarnationConfirm, setShowReincarnationConfirm] = useState(false);
   const [npcQuote, setNpcQuote] = useState(OLD_MAN_QUOTES[0]);
+  const [consecutiveFails, setConsecutiveFails] = useState(0);
+  const [marketItems, setMarketItems] = useState<any[]>([]);
+  const [marketRefreshTime, setMarketRefreshTime] = useState(300); // 5 minutes in seconds
+  const [availableTasks, setAvailableTasks] = useState<any[]>([]);
 
   // --- Refs for game loop ---
   const lastSaveRef = useRef(Date.now());
@@ -214,7 +288,8 @@ export default function Cultivation() {
       const successMsg = isMajorBreakthrough && msgSet ? msgSet.success : `恭喜！你成功突破到了 ${getRealmName(player.stageIndex + 1)}！`;
       addLog(successMsg);
       addLog("突破成功，气血已完全恢复，体质得到进一步强化！");
-      setNpcQuote(OLD_MAN_QUOTES[Math.floor(Math.random() * OLD_MAN_QUOTES.length)]);
+      setConsecutiveFails(0);
+      updateNpcQuote();
     } else {
       setPlayer(prev => {
         const next = { ...prev, exp: Math.floor(prev.exp * 0.7) };
@@ -223,6 +298,8 @@ export default function Cultivation() {
       });
       const failMsg = isMajorBreakthrough && msgSet ? msgSet.fail : "突破失败！灵力反噬，损失了三成修为...";
       addLog(failMsg);
+      setConsecutiveFails(prev => prev + 1);
+      updateNpcQuote();
     }
   };
 
@@ -316,25 +393,116 @@ export default function Cultivation() {
     addLog(`聚灵阵升级成功！当前等级：${player.arrayLevel + 1}`);
   };
 
-  const handleBuyElixir = () => {
-    const cost = Math.floor(100 * Math.pow(2, player.elixirCount));
-    if (player.stones < cost) {
-      addLog("灵石不足，无法购买丹药！");
+  const handleBuyItem = (item: any, index: number) => {
+    if (player.stones < item.cost) {
+      addLog("灵石不足，无法购买！");
       return;
     }
+
     setPlayer(prev => {
-      const next = {
-        ...prev,
-        stones: prev.stones - cost,
-        elixirCount: prev.elixirCount + 1
-      };
+      const next = { ...prev, stones: prev.stones - item.cost };
+      if (item.effect.elixir) next.elixirCount += item.effect.elixir;
+      if (item.effect.savvy) next.savvy += item.effect.savvy;
+      if (item.effect.hp) {
+        next.maxHp += item.effect.hp;
+        next.hp += item.effect.hp;
+      }
+      if (item.effect.attack) next.attack += item.effect.attack;
+      if (item.effect.defense) next.defense += item.effect.defense;
+      
       saveGame(next);
       return next;
     });
-    addLog(`服用丹药成功！修炼效率永久提升。`);
+
+    // Remove item from market after purchase
+    const newMarket = [...marketItems];
+    newMarket.splice(index, 1);
+    setMarketItems(newMarket);
+    addLog(`购买成功：获得了 ${item.name}！`);
   };
 
+  const handleDoWork = (task: any, index: number) => {
+    if (isPaused) return;
+    
+    // Reward scales with major realm
+    const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
+    const reward = Math.floor(task.rewardBase * majorRealmLevel * (0.8 + Math.random() * 0.4));
+    
+    setPlayer(prev => {
+      const next = { ...prev, stones: prev.stones + reward };
+      saveGame(next);
+      return next;
+    });
+
+    addLog(`完成任务 [${task.name}]：${task.desc} 获得灵石 x${reward}。`);
+    
+    // Refresh tasks after one is done
+    refreshTasks();
+  };
+
+  const refreshMarket = useCallback(() => {
+    const count = 4 + Math.floor(Math.random() * 3);
+    const selected = [];
+    const pool = [...MARKET_POOL];
+    
+    // Shuffle pool to ensure uniqueness and randomness
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    for (let i = 0; i < count; i++) {
+      if (pool.length === 0) break;
+      const item = pool.pop()!;
+      // Cost scales with player progress
+      const cost = Math.floor(item.costBase * (1 + player.stageIndex * 0.1));
+      selected.push({ ...item, cost });
+    }
+    
+    setMarketItems(selected);
+    setMarketRefreshTime(300);
+    addLog("【系统】坊市商品已刷新，快去看看有没有心仪的宝物！");
+    setNpcQuote(CONDITIONAL_QUOTES.marketRefresh[Math.floor(Math.random() * CONDITIONAL_QUOTES.marketRefresh.length)]);
+  }, [player.stageIndex]);
+
+  const refreshTasks = useCallback(() => {
+    const count = 4;
+    const selected = [];
+    const pool = [...WORK_TASKS];
+    
+    // Shuffle pool
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    for (let i = 0; i < count; i++) {
+      if (pool.length === 0) break;
+      selected.push(pool.pop()!);
+    }
+    setAvailableTasks(selected);
+  }, []);
+
   // --- Effects ---
+  useEffect(() => {
+    refreshMarket();
+    refreshTasks();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPaused) return;
+      setMarketRefreshTime(prev => {
+        if (prev <= 1) {
+          refreshMarket();
+          return 300;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPaused, refreshMarket]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (isPaused) return;
@@ -363,13 +531,36 @@ export default function Cultivation() {
     return () => clearInterval(interval);
   }, [isPaused, saveGame]);
 
+  // --- NPC Logic ---
+  const updateNpcQuote = useCallback(() => {
+    let pool = [...OLD_MAN_QUOTES];
+
+    if (player.stones > 1000) {
+      pool = [...pool, ...CONDITIONAL_QUOTES.highStones];
+    }
+    if (consecutiveFails >= 2) {
+      pool = [...pool, ...CONDITIONAL_QUOTES.consecutiveFails];
+    }
+    if (player.arrayLevel < 3 && player.stageIndex > 10) {
+      pool = [...pool, ...CONDITIONAL_QUOTES.lowEfficiency];
+    }
+    if (player.hp < player.maxHp * 0.3) {
+      pool = [...pool, ...CONDITIONAL_QUOTES.lowHp];
+    }
+    if (player.savvy > 30) {
+      pool = [...pool, ...CONDITIONAL_QUOTES.highSavvy];
+    }
+
+    setNpcQuote(pool[Math.floor(Math.random() * pool.length)]);
+  }, [player.stones, player.arrayLevel, player.stageIndex, player.hp, player.maxHp, player.savvy, consecutiveFails]);
+
   // Periodic NPC quotes
   useEffect(() => {
     const interval = setInterval(() => {
-      setNpcQuote(OLD_MAN_QUOTES[Math.floor(Math.random() * OLD_MAN_QUOTES.length)]);
+      updateNpcQuote();
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [updateNpcQuote]);
 
   // World Rumors trigger
   useEffect(() => {
@@ -500,7 +691,7 @@ export default function Cultivation() {
         <div className="md:col-span-8 flex flex-col gap-4 min-h-0">
           {/* Tabs */}
           <div className="flex gap-1">
-            {(['cultivate', 'adventure', 'abode', 'market'] as const).map(tab => (
+            {(['cultivate', 'adventure', 'tasks', 'abode', 'market'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -512,6 +703,7 @@ export default function Cultivation() {
               >
                 {tab === 'cultivate' && '修行'}
                 {tab === 'adventure' && '历练'}
+                {tab === 'tasks' && '打工'}
                 {tab === 'abode' && '洞府'}
                 {tab === 'market' && '坊市'}
               </button>
@@ -587,22 +779,77 @@ export default function Cultivation() {
               </div>
             )}
 
-            {activeTab === 'market' && (
-              <div className="space-y-6">
-                <div className="bg-black/40 p-4 pixel-border border-arcade-pink">
-                  <h3 className="text-arcade-pink text-sm mb-2">万宝阁 - 丹药</h3>
-                  <p className="text-[10px] text-white/60 mb-4">
-                    服用珍贵的丹药可以永久改善体质，提升对天地灵气的亲和力，从而增加修炼倍率。
-                  </p>
-                  <div className="flex justify-between items-center">
-                    <div className="text-[10px]">
-                      <div className="text-white/40">当前倍率: x{(1 + player.elixirCount * 0.5).toFixed(1)}</div>
-                      <div className="text-arcade-pink">下级倍率: x{(1 + (player.elixirCount + 1) * 0.5).toFixed(1)}</div>
+            {activeTab === 'tasks' && (
+              <div className="space-y-4">
+                <div className="text-arcade-yellow text-xs border-b border-white/10 pb-2 flex justify-between">
+                  <span>宗门任务榜</span>
+                  <span className="text-[8px] text-white/40">完成任务可获得灵石奖励</span>
+                </div>
+                <div className="grid gap-3">
+                  {availableTasks.map((task, i) => (
+                    <div key={i} className="bg-black/40 p-3 pixel-border border-white/10 flex justify-between items-center group hover:border-arcade-yellow transition-colors">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-[10px]">{task.name}</span>
+                          <span className={`text-[8px] px-1 ${
+                            task.difficulty === '简单' ? 'text-green-400' : 
+                            task.difficulty === '普通' ? 'text-blue-400' : 'text-red-400'
+                          }`}>[{task.difficulty}]</span>
+                        </div>
+                        <p className="text-[8px] text-white/40">{task.desc}</p>
+                      </div>
+                      <div className="text-right space-y-2">
+                        <div className="text-arcade-yellow text-[10px]">灵石 x{Math.floor(task.rewardBase * (Math.floor(player.stageIndex / 10) + 1))}</div>
+                        <button 
+                          onClick={() => handleDoWork(task, i)}
+                          className="pixel-button !py-1 !px-3 !text-[8px] !bg-arcade-yellow/20 hover:!bg-arcade-yellow/40"
+                        >
+                          接取
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={handleBuyElixir} className="pixel-button !py-2 !px-4 !text-[10px]">
-                      购买 (需 {Math.floor(100 * Math.pow(2, player.elixirCount))} 灵石)
-                    </button>
+                  ))}
+                </div>
+                <p className="text-[8px] text-white/20 italic text-center">任务完成后会自动刷新榜单...</p>
+              </div>
+            )}
+
+            {activeTab === 'market' && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                  <h3 className="text-arcade-pink text-sm">万宝阁</h3>
+                  <span className="text-[8px] text-white/40">距离下次刷新: {Math.floor(marketRefreshTime / 60)}分{marketRefreshTime % 60}秒</span>
+                </div>
+                
+                {marketItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-white/20">
+                    <div className="text-2xl mb-2">📦</div>
+                    <div className="text-[10px]">商品已售罄，请等待刷新</div>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {marketItems.map((item, i) => (
+                      <div key={i} className="bg-black/40 p-3 pixel-border border-arcade-pink/20 hover:border-arcade-pink transition-colors flex flex-col justify-between">
+                        <div className="mb-3">
+                          <div className="text-white text-[10px] mb-1">{item.name}</div>
+                          <p className="text-[8px] text-white/40 leading-relaxed">{item.desc}</p>
+                        </div>
+                        <div className="flex justify-between items-center mt-auto pt-2 border-t border-white/5">
+                          <span className="text-arcade-yellow text-[10px]">{item.cost} 灵石</span>
+                          <button 
+                            onClick={() => handleBuyItem(item, i)}
+                            className="pixel-button !py-1 !px-3 !text-[8px] !bg-arcade-pink/20 hover:!bg-arcade-pink/40"
+                          >
+                            购买
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="bg-black/20 p-3 rounded text-[8px] text-white/40 leading-relaxed">
+                  提示：万宝阁的商品价格会随着你的境界提升而略微上涨，但品质也会随之提高。
                 </div>
               </div>
             )}
