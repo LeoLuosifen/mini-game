@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Quicksand:wght@400;700&display=swap');
+
+@theme {
+  --font-pixel: "Press Start 2P", system-ui;
+  --font-sans: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-arcade-pink: #ff71ce;
+  --color-arcade-blue: #01cdfe;
+  --color-arcade-green: #05ffa1;
+  --color-arcade-purple: #b967ff;
+  --color-arcade-yellow: #fffb96;
+}
+
+@layer base {
+  body {
+    @apply bg-[#1a1a2e] text-white font-sans;
+    background-image: 
+      radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+}
+
+.pixel-border {
+  box-shadow: 
+    0 -4px 0 0 #000,
+    0 4px 0 0 #000,
+    -4px 0 0 0 #000,
+    4px 0 0 0 #000;
+}
+
+.pixel-button {
+  position: relative;
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: var(--color-arcade-pink);
+  color: #000;
+  text-decoration: none;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  box-shadow: 
+    inset -4px -4px 0 0 #b04e8e,
+    inset 4px 4px 0 0 #ff9edb,
+    0 -4px 0 0 #000,
+    0 4px 0 0 #000,
+    -4px 0 0 0 #000,
+    4px 0 0 0 #000;
+  transition: transform 0.1s;
+}
+
+.pixel-button:active {
+  transform: translateY(2px);
+  box-shadow: 
+    inset 4px 4px 0 0 #b04e8e,
+    inset -4px -4px 0 0 #ff9edb,
+    0 -4px 0 0 #000,
+    0 4px 0 0 #000,
+    -4px 0 0 0 #000,
+    4px 0 0 0 #000;
+}
+
+.pixel-card {
+  background: #2a2a4a;
+  box-shadow: 
+    0 -4px 0 0 #000,
+    0 4px 0 0 #000,
+    -4px 0 0 0 #000,
+    4px 0 0 0 #000;
+  position: relative;
+}
+
+.pixel-card::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 2px solid rgba(255,255,255,0.1);
+  pointer-events: none;
+}
