@@ -5,17 +5,37 @@ const REALMS = [
   "凡人", "炼气", "筑基", "金丹", "元婴", "化神", "炼虚", "合体", "大乘", "渡劫", "大帝"
 ];
 
-const CULTIVATION_LOGS = [
-  "你感悟天地，一丝紫气入体。",
-  "灵气如丝，缓缓汇聚于丹田。",
-  "你运转功法，周身穴位微微发热。",
-  "四周灵气暴动，被你强行纳入体内。",
-  "心境通明，修炼速度略有提升。",
-  "你吞吐日月精华，洗涤经脉。",
-  "丹田内灵力翻涌，更显凝实。",
-  "你进入深度冥想，物我两忘。",
-  "一丝感悟涌上心头，灵力运转更顺畅。",
-  "天地灵气如潮水般向你涌来。"
+const BREAKTHROUGH_MESSAGES: Record<string, { success: string; fail: string }> = {
+  "炼气": { success: "引气入体，经脉初开，你终于踏入了修仙之门。", fail: "灵气暴走，经脉受损，看来根基尚不够稳固。" },
+  "筑基": { success: "灵力液化，筑基台稳固，从此脱离凡胎，寿元大增。", fail: "筑基台崩裂，灵力溃散，险些道基全毁。" },
+  "金丹": { success: "金丹凝结，圆润无暇，从此我命由我不由天！", fail: "金丹碎裂，险些身陨，修为大损。" },
+  "元婴": { success: "破丹成婴，元神出窍，天地造化尽在掌握。", fail: "元婴难成，神魂受创，需要闭关修养。" },
+  "化神": { success: "神与意合，化神而生，举手投足间皆是法则。", fail: "神魂不稳，险些走火入魔，功亏一篑。" },
+  "炼虚": { success: "虚实转换，炼虚合道，你已触及这方世界的本源。", fail: "虚实失衡，肉身受损，修仙之路果然艰辛。" },
+  "合体": { success: "身神合一，不死不灭，这世间已鲜有敌手。", fail: "合体失败，肉身崩溃，幸得保住一丝神魂。" },
+  "大乘": { success: "大乘圆满，法则尽通，只待飞升之日。", fail: "法则反噬，修为倒退，大乘之路难如登天。" },
+  "渡劫": { success: "天劫已过，仙灵之气入体，你已半步成仙。", fail: "天雷轰顶，险些灰飞烟灭，需要重修道心。" },
+  "大帝": { success: "证道成帝，镇压万古，诸天万界唯你独尊！", fail: "帝路断绝，万古成空，终究还是差了一线。" }
+};
+
+const CULTIVATION_PARTS = {
+  actions: ["你运转功法", "你吞吐灵气", "你闭目冥想", "你感悟天地", "你引导紫气", "你洗涤经脉", "你凝练灵力"],
+  sensations: ["周身穴位发热", "丹田隐隐作痛", "神识一片清明", "灵气如潮水涌动", "经脉微微震颤", "心境古井无波"],
+  results: ["修为略有精进。", "灵力更显凝实。", "一丝感悟涌上心头。", "气息稳步攀升。", "根基愈发深厚。", "距离突破又近一步。"]
+};
+
+const WORLD_RUMORS = [
+  "【传闻】据说极北之地有异宝出世，引得无数老怪前往。",
+  "【传闻】万宝阁今日举行大型拍卖会，压轴宝物竟是一枚九品丹药。",
+  "【传闻】某位隐世大能的洞府被发现，修仙界又要掀起一番腥风血雨了。",
+  "【传闻】听说东海之滨有龙吟声传出，不知是真是假。",
+  "【传闻】最近坊市间的灵石汇率波动剧烈，不少散修叫苦连天。",
+  "【传闻】天剑宗的天才弟子闭关百年，今日终于破关而出了。",
+  "【传闻】南疆瘴气林中出现了一头万年妖王，路过修士请务必小心。"
+];
+
+const MONSTERS = [
+  "疾风狼", "嗜血虎", "幻影蛛", "铁甲犀", "青鳞蟒", "烈焰狮", "冰原熊", "地底蝎", "金翅雕", "九头蛇", "撼天猿"
 ];
 
 const EVENTS = {
@@ -24,21 +44,23 @@ const EVENTS = {
     { text: "路遇一位重伤散修，你施以援手，对方赠予你灵石 x{val}。", type: 'stones', base: 30 },
     { text: "在一处悬崖边发现一株百年灵药，服下后修为大增！", type: 'exp', base: 100 },
     { text: "捡到一枚储物戒指，里面竟有灵石 x{val}。", type: 'stones', base: 80 },
-    { text: "感悟天地法则，瞬间获得大量修为！", type: 'exp', base: 200 }
+    { text: "感悟天地法则，瞬间获得大量修为！", type: 'exp', base: 200 },
+    { text: "遇到神秘残魂指点，你的悟性提升了！", type: 'savvy', base: 1 },
+    { text: "误服朱果，你的气血上限提升了！", type: 'hp', base: 20 }
   ],
   negative: [
     { text: "历练途中遭遇劫匪，虽然逃脱，但丢失了灵石 x{val}。", type: 'stones', base: -20 },
     { text: "强行突破经脉，导致灵力反噬，损失部分修为。", type: 'exp', base: -50 },
-    { text: "误入迷阵，困了数日才脱身，身心俱疲。", type: 'none' },
+    { text: "误入迷阵，困了数日才脱身，身心俱疲。", type: 'none', base: 0 },
     { text: "遭遇妖兽袭击，负伤逃走，损失灵石 x{val} 购买伤药。", type: 'stones', base: -15 },
     { text: "修炼时不慎走火入魔，修为略有倒退。", type: 'exp', base: -30 }
   ],
   neutral: [
-    { text: "今日天气晴朗，你坐在崖边感悟天地，心境平和。", type: 'none' },
-    { text: "在茶馆听说了一些修仙界的奇闻异事。", type: 'none' },
-    { text: "路过一座凡人小镇，感受了一番人间烟火。", type: 'none' },
-    { text: "看到两名修士为争夺宝物大打出手，你悄悄绕开。", type: 'none' },
-    { text: "在林间漫步，偶然惊起一群灵鸟。", type: 'none' }
+    { text: "今日天气晴朗，你坐在崖边感悟天地，心境平和。", type: 'none', base: 0 },
+    { text: "在茶馆听说了一些修仙界的奇闻异事。", type: 'none', base: 0 },
+    { text: "路过一座凡人小镇，感受了一番人间烟火。", type: 'none', base: 0 },
+    { text: "看到两名修士为争夺宝物大打出手，你悄悄绕开。", type: 'none', base: 0 },
+    { text: "在林间漫步，偶然惊起一群灵鸟。", type: 'none', base: 0 }
   ]
 };
 
@@ -59,6 +81,9 @@ interface PlayerData {
   elixirCount: number;
   attack: number;
   defense: number;
+  hp: number;
+  maxHp: number;
+  savvy: number; // 悟性
 }
 
 const STORAGE_KEY = 'pixel_joy_cultivation_save';
@@ -66,15 +91,7 @@ const STORAGE_KEY = 'pixel_joy_cultivation_save';
 export default function Cultivation() {
   // --- State ---
   const [player, setPlayer] = useState<PlayerData>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to load save", e);
-      }
-    }
-    return {
+    const defaultData = {
       name: "无名修士",
       stageIndex: 0,
       exp: 0,
@@ -82,8 +99,27 @@ export default function Cultivation() {
       arrayLevel: 0,
       elixirCount: 0,
       attack: 10,
-      defense: 5
+      defense: 5,
+      hp: 100,
+      maxHp: 100,
+      savvy: 10
     };
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Merge saved data with defaults to handle missing fields from old saves
+        const merged = { ...defaultData, ...parsed };
+        // Defensive check for NaN values that might have been saved
+        if (isNaN(merged.exp)) merged.exp = 0;
+        if (isNaN(merged.savvy)) merged.savvy = 10;
+        if (isNaN(merged.hp)) merged.hp = merged.maxHp;
+        return merged;
+      } catch (e) {
+        console.error("Failed to load save", e);
+      }
+    }
+    return defaultData;
   });
 
   const getRealmName = (index: number) => {
@@ -99,7 +135,7 @@ export default function Cultivation() {
   const [logs, setLogs] = useState<string[]>(["欢迎来到修仙世界，开始你的长生之路吧。"]);
   const [activeTab, setActiveTab] = useState<'cultivate' | 'adventure' | 'abode' | 'market'>('cultivate');
   const [isPaused, setIsPaused] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showReincarnationConfirm, setShowReincarnationConfirm] = useState(false);
   const [npcQuote, setNpcQuote] = useState(OLD_MAN_QUOTES[0]);
 
   // --- Refs for game loop ---
@@ -107,8 +143,8 @@ export default function Cultivation() {
 
   // --- Formulas ---
   const getExpRequirement = (index: number) => Math.floor(100 * Math.pow(1.12, index));
-  const getIdleExp = () => (player.arrayLevel * 2 + 1) * (1 + player.elixirCount * 0.5);
-  const getManualExp = () => (5 + Math.floor(player.stageIndex / 5)) * (1 + player.elixirCount * 0.5);
+  const getIdleExp = () => (player.arrayLevel * 2 + 1) * (1 + player.elixirCount * 0.5) * ((player.savvy || 10) / 10);
+  const getManualExp = () => (5 + Math.floor(player.stageIndex / 5)) * (1 + player.elixirCount * 0.5) * ((player.savvy || 10) / 10);
   const getBreakthroughChance = () => {
     if (player.stageIndex === 0) return 1; // 凡人必过
     const isMajor = player.stageIndex % 10 === 0;
@@ -138,7 +174,12 @@ export default function Cultivation() {
       saveGame(next);
       return next;
     });
-    addLog(CULTIVATION_LOGS[Math.floor(Math.random() * CULTIVATION_LOGS.length)]);
+    
+    // Dynamic log generation
+    const action = CULTIVATION_PARTS.actions[Math.floor(Math.random() * CULTIVATION_PARTS.actions.length)];
+    const sensation = CULTIVATION_PARTS.sensations[Math.floor(Math.random() * CULTIVATION_PARTS.sensations.length)];
+    const result = CULTIVATION_PARTS.results[Math.floor(Math.random() * CULTIVATION_PARTS.results.length)];
+    addLog(`${action}，${sensation}，${result}`);
   };
 
   const handleBreakthrough = () => {
@@ -150,19 +191,29 @@ export default function Cultivation() {
     }
 
     const chance = getBreakthroughChance();
+    const currentMajorRealm = REALMS[Math.floor((player.stageIndex - 1) / 10) + 1] || "凡人";
+    const isMajorBreakthrough = player.stageIndex % 10 === 0 && player.stageIndex !== 0;
+    const msgSet = BREAKTHROUGH_MESSAGES[currentMajorRealm];
+
     if (Math.random() < chance) {
       setPlayer(prev => {
+        const hpGain = isMajorBreakthrough ? 100 : 20;
         const next = {
           ...prev,
           stageIndex: prev.stageIndex + 1,
           exp: 0,
           attack: prev.attack + 5,
-          defense: prev.defense + 3
+          defense: prev.defense + 3,
+          maxHp: prev.maxHp + hpGain,
+          hp: prev.maxHp + hpGain // Restore to full (new max)
         };
         saveGame(next);
         return next;
       });
-      addLog(`恭喜！你成功突破到了 ${getRealmName(player.stageIndex + 1)}！`);
+      
+      const successMsg = isMajorBreakthrough && msgSet ? msgSet.success : `恭喜！你成功突破到了 ${getRealmName(player.stageIndex + 1)}！`;
+      addLog(successMsg);
+      addLog("突破成功，气血已完全恢复，体质得到进一步强化！");
       setNpcQuote(OLD_MAN_QUOTES[Math.floor(Math.random() * OLD_MAN_QUOTES.length)]);
     } else {
       setPlayer(prev => {
@@ -170,57 +221,76 @@ export default function Cultivation() {
         saveGame(next);
         return next;
       });
-      addLog("突破失败！灵力反噬，损失了三成修为...");
+      const failMsg = isMajorBreakthrough && msgSet ? msgSet.fail : "突破失败！灵力反噬，损失了三成修为...";
+      addLog(failMsg);
     }
   };
 
   const handleAdventure = () => {
     if (isPaused) return;
-    const rand = Math.random();
-    let event;
-    let type: 'positive' | 'negative' | 'neutral';
-
-    if (rand < 0.4) type = 'positive';
-    else if (rand < 0.7) type = 'negative';
-    else type = 'neutral';
-
-    const pool = EVENTS[type];
-    event = pool[Math.floor(Math.random() * pool.length)];
+    const types: ('positive' | 'negative' | 'neutral')[] = ['positive', 'negative', 'neutral'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const eventList = EVENTS[type];
+    const event = eventList[Math.floor(Math.random() * eventList.length)];
 
     let logMsg = event.text;
     let stoneGain = 0;
     let expGain = 0;
+    let savvyGain = 0;
+    let hpMaxGain = 0;
+
+    const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
 
     if (event.type === 'stones') {
-      stoneGain = Math.floor(Math.abs(event.base || 0) * (Math.floor(player.stageIndex / 10) + 1) * (0.5 + Math.random()));
+      stoneGain = Math.floor(Math.abs(event.base || 0) * majorRealmLevel * (0.5 + Math.random()));
       if (event.base && event.base < 0) stoneGain = -Math.min(player.stones, Math.abs(stoneGain));
       logMsg = logMsg.replace('{val}', Math.abs(stoneGain).toString());
     } else if (event.type === 'exp') {
-      expGain = Math.floor((event.base || 0) * (Math.floor(player.stageIndex / 10) + 1));
-    } else if (type === 'neutral' && Math.random() < 0.3) {
-      // Small chance for a battle in neutral/adventure
-      const monsterLevel = Math.max(1, Math.floor(player.stageIndex / 5) + (Math.random() > 0.5 ? 1 : -1));
-      const monsterAtk = monsterLevel * 8;
-      const monsterDef = monsterLevel * 4;
+      expGain = Math.floor((event.base || 0) * majorRealmLevel);
+    } else if (event.type === 'savvy') {
+      savvyGain = event.base || 1;
+    } else if (event.type === 'hp') {
+      hpMaxGain = event.base || 20;
+    } else if (type === 'neutral' && Math.random() < 0.4) {
+      // Battle Logic
+      const monsterName = MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
+      const monsterLevel = Math.max(1, player.stageIndex + (Math.random() > 0.5 ? 2 : -2));
+      const monsterHp = monsterLevel * 50;
+      const monsterAtk = monsterLevel * 10;
+      const monsterDef = monsterLevel * 5;
       
-      const playerDmg = Math.max(1, player.attack - monsterDef);
-      const monsterDmg = Math.max(1, monsterAtk - player.defense);
+      const playerDmg = Math.max(5, player.attack - monsterDef);
+      const monsterDmg = Math.max(2, monsterAtk - player.defense);
       
-      if (playerDmg >= monsterDmg) {
-        stoneGain = monsterLevel * 20;
-        logMsg = `遭遇一只 ${monsterLevel} 级妖兽，你经过一番苦战将其击杀，获得灵石 x${stoneGain}。`;
+      const roundsToKill = Math.ceil(monsterHp / playerDmg);
+      const totalDamageTaken = roundsToKill * monsterDmg;
+
+      if (totalDamageTaken < player.hp) {
+        stoneGain = monsterLevel * 25;
+        expGain = monsterLevel * 15;
+        logMsg = `你祭出法宝与 [${monsterName}] (等级 ${monsterLevel}) 激战，经过 ${roundsToKill} 个回合将其击杀，获得灵石 x${stoneGain}，修为 x${expGain}。`;
+        
+        setPlayer(prev => ({ ...prev, hp: Math.max(1, prev.hp - totalDamageTaken) }));
       } else {
-        stoneGain = -Math.min(player.stones, 10);
-        logMsg = `遭遇一只 ${monsterLevel} 级妖兽，你力战不敌，负伤逃走，损失了少量灵石。`;
+        stoneGain = -Math.min(player.stones, monsterLevel * 5);
+        logMsg = `你与 [${monsterName}] 激战数十回合，终因实力不济负伤遁走，损失了灵石 x${Math.abs(stoneGain)}。`;
+        setPlayer(prev => ({ ...prev, hp: Math.max(1, Math.floor(prev.hp * 0.1)) }));
       }
     }
 
     setPlayer(prev => {
       const req = getExpRequirement(prev.stageIndex);
+      const currentSavvy = prev.savvy || 10;
+      const currentMaxHp = prev.maxHp || 100;
+      const currentHp = prev.hp || 100;
+      
       const next = {
         ...prev,
         stones: Math.max(0, prev.stones + stoneGain),
-        exp: Math.min(req, Math.max(0, prev.exp + expGain))
+        exp: Math.min(req, Math.max(0, prev.exp + expGain)),
+        savvy: currentSavvy + (savvyGain || 0),
+        maxHp: currentMaxHp + (hpMaxGain || 0),
+        hp: Math.min(currentMaxHp + (hpMaxGain || 0), currentHp + (hpMaxGain || 0))
       };
       saveGame(next);
       return next;
@@ -271,9 +341,14 @@ export default function Cultivation() {
       const gain = getIdleExp();
       setPlayer(prev => {
         const req = getExpRequirement(prev.stageIndex);
-        if (prev.exp >= req) return prev;
         
-        const next = { ...prev, exp: Math.min(req, prev.exp + gain / 10) }; // Update every 100ms for smoothness
+        // Auto-heal: 1% of maxHp per second (0.1% per 100ms)
+        const healAmount = prev.maxHp * 0.001;
+        const newHp = Math.min(prev.maxHp, prev.hp + healAmount);
+
+        if (prev.exp >= req) return { ...prev, hp: newHp };
+        
+        const next = { ...prev, exp: Math.min(req, prev.exp + gain / 10), hp: newHp }; // Update every 100ms for smoothness
         
         // Auto-save every 10 seconds
         if (Date.now() - lastSaveRef.current > 10000) {
@@ -296,7 +371,17 @@ export default function Cultivation() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleReset = () => {
+  // World Rumors trigger
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPaused) return;
+      const rumor = WORLD_RUMORS[Math.floor(Math.random() * WORLD_RUMORS.length)];
+      addLog(rumor);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const handleReincarnation = () => {
     localStorage.removeItem(STORAGE_KEY);
     setPlayer({
       name: "无名修士",
@@ -306,11 +391,14 @@ export default function Cultivation() {
       arrayLevel: 0,
       elixirCount: 0,
       attack: 10,
-      defense: 5
+      defense: 5,
+      hp: 100,
+      maxHp: 100,
+      savvy: 10
     });
-    setLogs(["数据已重置，开始新的长生之路吧。"]);
-    addLog("数据已重置，开始新的长生之路吧。");
-    setShowResetConfirm(false);
+    setLogs(["你已兵解转生，前尘往事尽成云烟。新的轮回开始了。"]);
+    addLog("你已兵解转生，前尘往事尽成云烟。新的轮回开始了。");
+    setShowReincarnationConfirm(false);
   };
 
   const expReq = getExpRequirement(player.stageIndex);
@@ -323,10 +411,10 @@ export default function Cultivation() {
         <h1 className="text-arcade-blue text-lg">凡人修仙传</h1>
         <div className="flex gap-2">
           <button 
-            onClick={() => setShowResetConfirm(true)} 
+            onClick={() => setShowReincarnationConfirm(true)} 
             className="pixel-button !py-1 !px-3 !text-[10px] !bg-arcade-pink/20 hover:!bg-arcade-pink/40"
           >
-            重置存档
+            兵解转生
           </button>
           <button 
             onClick={() => setIsPaused(!isPaused)} 
@@ -371,7 +459,7 @@ export default function Cultivation() {
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">修炼效率</div>
-                <div className="text-arcade-blue">x{(1 + player.elixirCount * 0.5).toFixed(1)}</div>
+                <div className="text-arcade-blue">x{( (1 + player.elixirCount * 0.5) * (player.savvy / 10) ).toFixed(1)}</div>
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">攻击力</div>
@@ -380,6 +468,14 @@ export default function Cultivation() {
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">防御力</div>
                 <div className="text-arcade-blue">{player.defense}</div>
+              </div>
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">气血值</div>
+                <div className="text-red-400">{Math.floor(player.hp)} / {player.maxHp}</div>
+              </div>
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">悟性</div>
+                <div className="text-purple-400">{player.savvy}</div>
               </div>
             </div>
 
@@ -525,27 +621,27 @@ export default function Cultivation() {
         </ul>
       </div>
 
-      {/* Reset Confirmation Modal */}
-      {showResetConfirm && (
+      {/* Reincarnation Confirmation Modal */}
+      {showReincarnationConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#1a1a2e] pixel-border border-arcade-pink p-6 max-w-sm w-full text-center space-y-6">
-            <h3 className="text-arcade-pink font-pixel text-sm">确认重置？</h3>
+            <h3 className="text-arcade-pink font-pixel text-sm">确认兵解转生？</h3>
             <p className="text-[10px] text-white/60 leading-relaxed">
-              确定要清空所有修仙进度重新开始吗？<br />
-              此操作将永久删除你的存档，不可撤销！
+              确定要兵解转生，重入轮回吗？<br />
+              此操作将散尽全身修为与财货，不可逆转！
             </p>
             <div className="flex gap-4">
               <button 
-                onClick={() => setShowResetConfirm(false)}
+                onClick={() => setShowReincarnationConfirm(false)}
                 className="flex-1 pixel-button !bg-gray-600 !py-2"
               >
-                取消
+                暂缓转生
               </button>
               <button 
-                onClick={handleReset}
+                onClick={handleReincarnation}
                 className="flex-1 pixel-button !bg-arcade-pink !py-2"
               >
-                确定重置
+                即刻兵解
               </button>
             </div>
           </div>
