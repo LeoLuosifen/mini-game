@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-const GRID_SIZE = 3;
+import { GRID_SIZE } from '../data/PuzzleData';
 
 export default function Puzzle() {
   const [tiles, setTiles] = useState<number[]>([]);

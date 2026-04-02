@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const BOARD_SIZE = 8;
-const COLORS = ['bg-arcade-pink', 'bg-arcade-blue', 'bg-arcade-green', 'bg-arcade-purple', 'bg-arcade-yellow'];
-
-interface Tile {
-  id: number;
-  color: string;
-}
+import { BOARD_SIZE, COLORS, Tile } from '../data/Match3Data';
 
 export default function Match3() {
   const [board, setBoard] = useState<(Tile | null)[]>([]);

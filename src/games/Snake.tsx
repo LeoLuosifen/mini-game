@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-
-const GRID_SIZE = 20;
-const INITIAL_SNAKE = [{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }];
-const INITIAL_DIRECTION = { x: 0, y: -1 };
+import { GRID_SIZE, INITIAL_SNAKE, INITIAL_DIRECTION } from '../data/SnakeData';
 
 export default function Snake() {
   const [snake, setSnake] = useState(INITIAL_SNAKE);
