@@ -144,6 +144,45 @@ export const CONDITIONAL_QUOTES = {
   ]
 };
 
+export interface SpiritRoot {
+  id: string;
+  name: string;
+  quality: number; // 1-7
+  prob: number; // 0-1
+  expBonus: number; // multiplier
+  desc: string;
+}
+
+export const SPIRIT_ROOTS: SpiritRoot[] = [
+  { id: 'waste', name: "废灵根", quality: 1, prob: 0.75, expBonus: 0.5, desc: "五行俱全，杂乱无章，修炼如龟速。" },
+  { id: 'pseudo', name: "伪灵根", quality: 2, prob: 0.18, expBonus: 0.8, desc: "四属性或三属性分布不均，资质平平。" },
+  { id: 'true', name: "真灵根", quality: 3, prob: 0.05, expBonus: 1.2, desc: "双属性或某属性突出，修炼速度可观。" },
+  { id: 'earth', name: "地灵根", quality: 4, prob: 0.015, expBonus: 1.8, desc: "属性相辅相成，元婴有望，化神可期。" },
+  { id: 'heaven', name: "天灵根", quality: 5, prob: 0.001, expBonus: 3.0, desc: "单一纯属性，天之骄子，修炼无瓶颈。" },
+  { id: 'mutated', name: "变异灵根", quality: 6, prob: 0.003, expBonus: 2.5, desc: "雷、冰、风等变异属性，威力强横。" },
+  { id: 'special', name: "特殊体质", quality: 7, prob: 0.001, expBonus: 5.0, desc: "先天道体或圣体，无视规则，上限极高。" }
+];
+
+export interface Sect {
+  id: string;
+  name: string;
+  rank: string;
+  minQuality: number;
+  expBonus: number;
+  atkBonus: number;
+  defBonus: number;
+  desc: string;
+}
+
+export const SECTS: Sect[] = [
+  { id: 'tianxuan', name: "天璇剑宗", rank: "顶级宗门", minQuality: 3, expBonus: 1.5, atkBonus: 20, defBonus: 0, desc: "正道魁首，以剑修为主，攻击力冠绝天下。" },
+  { id: 'youming', name: "幽冥鬼府", rank: "顶级宗门", minQuality: 1, expBonus: 1.4, atkBonus: 10, defBonus: 10, desc: "魔道霸主，修魂炼尸，弱肉强食。" },
+  { id: 'wanbao', name: "万宝商会", rank: "中等偏上", minQuality: 2, expBonus: 1.2, atkBonus: 0, defBonus: 5, desc: "中立富商，富可敌国，资源丰富。" },
+  { id: 'guixu', name: "归墟海阁", rank: "隐世圣地", minQuality: 4, expBonus: 2.0, atkBonus: 15, defBonus: 15, desc: "海外孤岛，与世无争，实力深不可测。" },
+  { id: 'blood', name: "血灵宗", rank: "中等魔道", minQuality: 1, expBonus: 1.8, atkBonus: 25, defBonus: -10, desc: "邪道疯子，汲取精血，进境极快但易疯狂。" },
+  { id: 'qingyu', name: "青羽门", rank: "小门派", minQuality: 1, expBonus: 1.1, atkBonus: 5, defBonus: 5, desc: "没落贵族，祖上阔过，适合新手起步。" }
+];
+
 export interface PlayerData {
   name: string;
   stageIndex: number;
@@ -159,6 +198,9 @@ export interface PlayerData {
   maxHp: number;
   savvy: number;
   inventory: Record<string, number>;
+  spiritRootId?: string;
+  sectId?: string;
+  isDead?: boolean;
 }
 
 export const STORAGE_KEY = 'pixel_joy_cultivation_save';

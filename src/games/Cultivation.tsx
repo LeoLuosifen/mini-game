@@ -10,6 +10,8 @@ import {
   WORK_TASKS, 
   OLD_MAN_QUOTES, 
   CONDITIONAL_QUOTES,
+  SPIRIT_ROOTS, 
+  SECTS,
   PlayerData,
   STORAGE_KEY
 } from '../data/CultivationData';
@@ -18,7 +20,7 @@ export default function Cultivation() {
   // --- State ---
   const [player, setPlayer] = useState<PlayerData>(() => {
     const defaultData = {
-      name: "无名修士",
+      name: "",
       stageIndex: 0,
       exp: 0,
       stonesLow: 0,
@@ -31,7 +33,8 @@ export default function Cultivation() {
       hp: 100,
       maxHp: 100,
       savvy: 10,
-      inventory: {}
+      inventory: {},
+      isDead: false
     };
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -67,9 +70,13 @@ export default function Cultivation() {
   };
 
   const [logs, setLogs] = useState<string[]>(["欢迎来到修仙世界，开始你的长生之路吧。"]);
-  const [activeTab, setActiveTab] = useState<'cultivate' | 'adventure' | 'abode' | 'market' | 'tasks'>('cultivate');
+  const [activeTab, setActiveTab] = useState<'cultivate' | 'adventure' | 'tasks' | 'abode' | 'market' | 'inventory'>('cultivate');
   const [isPaused, setIsPaused] = useState(false);
+  const [showInitModal, setShowInitModal] = useState(false);
   const [showReincarnationConfirm, setShowReincarnationConfirm] = useState(false);
+  const [initStep, setInitStep] = useState<'name' | 'root' | 'sect'>('name');
+  const [tempName, setTempName] = useState("");
+  const [rolledRootId, setRolledRootId] = useState<string | null>(null);
   const [npcQuote, setNpcQuote] = useState(OLD_MAN_QUOTES[0]);
   const [consecutiveFails, setConsecutiveFails] = useState(0);
   const [marketItems, setMarketItems] = useState<any[]>([]);
@@ -91,15 +98,46 @@ export default function Cultivation() {
     return Math.floor(baseAtGoldenCore * Math.pow(1.4, index - 20));
   };
 
+  const getFacilityStats = () => {
+    const level = player.arrayLevel;
+    const base = { atk: 0, def: 0, expMult: 1.0, stoneRate: 0, elixirMult: 1.0 };
+    
+    switch (player.sectId) {
+      case 'tianxuan': return { ...base, name: '剑意碑', atk: level * 5, expMult: 1.2, desc: '感悟无上剑意，磨砺神魂，修为自成。额外提升攻击力。' };
+      case 'youming': return { ...base, name: '炼魂炉', def: level * 3, expMult: 1.5, desc: '炼化残魂，抽取阴冥之气，强行提升修为。额外提升防御力。' };
+      case 'wanbao': return { ...base, name: '聚宝盆', expMult: 1.1, stoneRate: level * 0.2, desc: '以财通神，灵石共鸣，修为随财富增长。每秒产生少量下品灵石。' };
+      case 'guixu': return { ...base, name: '归墟眼', atk: level * 2, def: level * 2, expMult: 2.5, desc: '沟通无尽归墟，吞噬天地灵气，修为如海纳百川。全方位提升。' };
+      case 'blood': return { ...base, name: '化血池', atk: level * 8, def: -level * 2, expMult: 3.0, desc: '以血为引，逆天改命，修为进境极快。极大提升攻击但降低防御。' };
+      case 'qingyu': return { ...base, name: '灵药园', expMult: 1.3, elixirMult: 2.0, desc: '培育灵草，药香扑鼻，修为在草木荣枯中增长。翻倍丹药加成。' };
+      default: return { ...base, name: '聚灵阵', desc: '通过在洞府中布置聚灵阵，可以大幅提升天地灵气的汇聚速度，实现自动增长修为。' };
+    }
+  };
+
   const getIdleExp = () => {
+    const root = SPIRIT_ROOTS.find(r => r.id === player.spiritRootId);
+    const sect = SECTS.find(s => s.id === player.sectId);
+    const rootBonus = root?.expBonus || 1;
+    const sectBonus = sect?.expBonus || 1;
+    const facility = getFacilityStats();
+
     // Balanced base gain: 0.1 -> 0.3 -> 0.5 -> ...
-    const baseGain = (player.arrayLevel * 0.2 + 0.1);
-    return baseGain * (1 + player.elixirCount * 0.2) * ((player.savvy || 10) / 10);
+    const baseGain = (player.arrayLevel * 0.2 + 0.1) * facility.expMult;
+    const elixirBonus = 1 + player.elixirCount * 0.2 * (facility.elixirMult || 1.0);
+    
+    return baseGain * elixirBonus * ((player.savvy || 10) / 10) * rootBonus * sectBonus;
   };
 
   const getManualExp = () => {
-    const baseGain = (2 + Math.floor(player.stageIndex / 10));
-    return baseGain * (1 + player.elixirCount * 0.2) * ((player.savvy || 10) / 10);
+    const root = SPIRIT_ROOTS.find(r => r.id === player.spiritRootId);
+    const sect = SECTS.find(s => s.id === player.sectId);
+    const rootBonus = root?.expBonus || 1;
+    const sectBonus = sect?.expBonus || 1;
+    const facility = getFacilityStats();
+
+    const baseGain = (2 + Math.floor(player.stageIndex / 10)) * facility.expMult;
+    const elixirBonus = 1 + player.elixirCount * 0.2 * (facility.elixirMult || 1.0);
+    
+    return baseGain * elixirBonus * ((player.savvy || 10) / 10) * rootBonus * sectBonus;
   };
 
   const getTaskSuccessChance = useCallback((difficulty: string) => {
@@ -139,6 +177,51 @@ export default function Cultivation() {
   const saveGame = useCallback((data: PlayerData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, []);
+
+  const handleInitPlayer = (name: string, rootId: string, sectId?: string) => {
+    const root = SPIRIT_ROOTS.find(r => r.id === rootId);
+    const sect = SECTS.find(s => s.id === sectId);
+    
+    const nextPlayer: PlayerData = {
+      name,
+      spiritRootId: rootId,
+      sectId,
+      stageIndex: 0,
+      exp: 0,
+      stonesLow: 0,
+      stonesHigh: 0,
+      stonesTop: 0,
+      arrayLevel: 0,
+      elixirCount: 0,
+      attack: 10 + (sect?.atkBonus || 0),
+      defense: 5 + (sect?.defBonus || 0),
+      hp: 100,
+      maxHp: 100,
+      savvy: 10,
+      inventory: {},
+      isDead: false
+    };
+    
+    setPlayer(nextPlayer);
+    saveGame(nextPlayer);
+    setShowInitModal(false);
+    addLog(`这一世，你名为 [${name}]，身怀 [${root?.name || "未知"}]，${sect ? `拜入 [${sect.name}]` : "成为一名散修"}，开始了新的修行。`);
+  };
+
+  const rollSpiritRoot = () => {
+    const rand = Math.random();
+    let cumulative = 0;
+    for (const root of SPIRIT_ROOTS) {
+      cumulative += root.prob;
+      if (rand < cumulative) {
+        setRolledRootId(root.id);
+        setInitStep('sect');
+        return;
+      }
+    }
+    setRolledRootId(SPIRIT_ROOTS[0].id);
+    setInitStep('sect');
+  };
 
   const handleManualCultivate = () => {
     if (isPaused) return;
@@ -250,8 +333,12 @@ export default function Cultivation() {
       const monsterAtk = monsterLevel * 10;
       const monsterDef = monsterLevel * 5;
       
-      const playerDmg = Math.max(5, player.attack - monsterDef);
-      const monsterDmg = Math.max(2, monsterAtk - player.defense);
+      const facility = getFacilityStats();
+      const totalAtk = player.attack + (facility.atk || 0);
+      const totalDef = player.defense + (facility.def || 0);
+      
+      const playerDmg = Math.max(5, totalAtk - monsterDef);
+      const monsterDmg = Math.max(2, monsterAtk - totalDef);
       
       const roundsToKill = Math.ceil(monsterHp / playerDmg);
       const totalDamageTaken = roundsToKill * monsterDmg;
@@ -302,6 +389,7 @@ export default function Cultivation() {
     
     let cost = 0;
     let currency: 'stonesLow' | 'stonesHigh' | 'stonesTop' = 'stonesLow';
+    const facility = getFacilityStats();
     
     // Tiered upgrade system
     if (player.arrayLevel < 10) {
@@ -318,7 +406,7 @@ export default function Cultivation() {
     const currencyName = currency === 'stonesLow' ? '下品灵石' : currency === 'stonesHigh' ? '高级灵石' : '极品灵石';
     
     if (player[currency] < cost) {
-      addLog(`${currencyName}不足，无法升级聚灵阵！`);
+      addLog(`${currencyName}不足，无法升级${facility.name}！`);
       return;
     }
     setPlayer(prev => {
@@ -330,7 +418,7 @@ export default function Cultivation() {
       saveGame(next);
       return next;
     });
-    addLog(`聚灵阵升级成功！消耗了 ${cost} ${currencyName}。当前等级：${player.arrayLevel + 1}`);
+    addLog(`${facility.name}升级成功！消耗了 ${cost} ${currencyName}。当前等级：${player.arrayLevel + 1}`);
   };
 
   const handleBuyItem = (item: any, index: number) => {
@@ -552,13 +640,31 @@ export default function Cultivation() {
 
   // --- Effects ---
   useEffect(() => {
+    if (!player.spiritRootId && !showInitModal) {
+      setShowInitModal(true);
+      setInitStep('name');
+    }
+  }, [player.spiritRootId, showInitModal]);
+
+  useEffect(() => {
+    if (player.hp <= 0 && !player.isDead && player.spiritRootId) {
+      setPlayer(prev => {
+        const next = { ...prev, isDead: true };
+        saveGame(next);
+        return next;
+      });
+      addLog("你伤势过重，灵力枯竭，终究还是没能挺过去... 这一世结束了。");
+    }
+  }, [player.hp, player.isDead, player.spiritRootId, saveGame]);
+
+  useEffect(() => {
     refreshMarket();
     refreshTasks();
   }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isPaused) return;
+      if (isPaused || player.isDead || !player.spiritRootId) return;
       setMarketRefreshTime(prev => {
         if (prev <= 1) {
           refreshMarket();
@@ -606,8 +712,10 @@ export default function Cultivation() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isPaused) return;
+      if (isPaused || player.isDead || !player.spiritRootId) return;
       const gain = getIdleExp();
+      const facility = getFacilityStats();
+      
       setPlayer(prev => {
         const req = getExpRequirement(prev.stageIndex);
         
@@ -615,9 +723,14 @@ export default function Cultivation() {
         const healAmount = prev.maxHp * 0.001;
         const newHp = Math.min(prev.maxHp, prev.hp + healAmount);
 
-        if (prev.exp >= req) return { ...prev, hp: newHp };
+        const stoneGain = (facility.stoneRate || 0) / 10; // 100ms interval
         
-        const next = { ...prev, exp: Math.min(req, prev.exp + gain / 10), hp: newHp }; // Update every 100ms for smoothness
+        const next = { 
+          ...prev, 
+          exp: prev.exp >= req ? prev.exp : Math.min(req, prev.exp + gain / 10), 
+          hp: newHp,
+          stonesLow: prev.stonesLow + stoneGain
+        };
         
         // Auto-save every 10 seconds
         if (Date.now() - lastSaveRef.current > 10000) {
@@ -674,24 +787,9 @@ export default function Cultivation() {
   }, [isPaused]);
 
   const handleReincarnation = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setPlayer({
-      name: "无名修士",
-      stageIndex: 0,
-      exp: 0,
-      stonesLow: 0,
-      stonesHigh: 0,
-      stonesTop: 0,
-      arrayLevel: 0,
-      elixirCount: 0,
-      attack: 10,
-      defense: 5,
-      hp: 100,
-      maxHp: 100,
-      savvy: 10
-    });
-    setLogs(["你已兵解转生，前尘往事尽成云烟。新的轮回开始了。"]);
-    addLog("你已兵解转生，前尘往事尽成云烟。新的轮回开始了。");
+    setShowInitModal(true);
+    setInitStep('name');
+    setTempName("");
     setShowReincarnationConfirm(false);
   };
 
@@ -747,6 +845,14 @@ export default function Cultivation() {
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">灵根</div>
+                <div className="text-arcade-yellow">{SPIRIT_ROOTS.find(r => r.id === player.spiritRootId)?.name || "无"}</div>
+              </div>
+              <div className="bg-black/40 p-2 pixel-border border-white/5">
+                <div className="text-white/40">宗门</div>
+                <div className="text-arcade-blue">{SECTS.find(s => s.id === player.sectId)?.name || "散修"}</div>
+              </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5 col-span-2">
                 <div className="text-white/40 mb-1">灵石储备</div>
                 <div className="flex justify-between gap-2">
@@ -766,15 +872,22 @@ export default function Cultivation() {
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">修炼效率</div>
-                <div className="text-arcade-blue">x{( (1 + player.elixirCount * 0.5) * (player.savvy / 10) ).toFixed(1)}</div>
+                <div className="text-arcade-blue">
+                  x{( 
+                    (1 + player.elixirCount * 0.2) * 
+                    (player.savvy / 10) * 
+                    (SPIRIT_ROOTS.find(r => r.id === player.spiritRootId)?.expBonus || 1) * 
+                    (SECTS.find(s => s.id === player.sectId)?.expBonus || 1) 
+                  ).toFixed(1)}
+                </div>
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">攻击力</div>
-                <div className="text-arcade-pink">{player.attack}</div>
+                <div className="text-arcade-pink">{player.attack + (getFacilityStats().atk || 0)}</div>
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">防御力</div>
-                <div className="text-arcade-blue">{player.defense}</div>
+                <div className="text-arcade-blue">{player.defense + (getFacilityStats().def || 0)}</div>
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">气血值</div>
@@ -884,14 +997,18 @@ export default function Cultivation() {
             {activeTab === 'abode' && (
               <div className="space-y-6">
                 <div className="bg-black/40 p-4 pixel-border border-arcade-green">
-                  <h3 className="text-arcade-green text-sm mb-2">聚灵阵 (Lv.{player.arrayLevel})</h3>
+                  <h3 className="text-arcade-green text-sm mb-2">{getFacilityStats().name} (Lv.{player.arrayLevel})</h3>
                   <p className="text-[10px] text-white/60 mb-4">
-                    通过在洞府中布置聚灵阵，可以大幅提升天地灵气的汇聚速度，实现自动增长修为。
+                    {getFacilityStats().desc}
                   </p>
                   <div className="flex justify-between items-center">
                     <div className="text-[10px]">
                       <div className="text-white/40">当前效果: +{getIdleExp().toFixed(1)} 修为/秒</div>
-                      <div className="text-arcade-green">升级后: +{(( (player.arrayLevel + 1) * 0.2 + 0.1 ) * (1 + player.elixirCount * 0.2) * (player.savvy / 10)).toFixed(1)} 修为/秒</div>
+                      {getFacilityStats().atk !== 0 && <div className="text-arcade-pink">攻击加成: {getFacilityStats().atk > 0 ? '+' : ''}{getFacilityStats().atk}</div>}
+                      {getFacilityStats().def !== 0 && <div className="text-arcade-blue">防御加成: {getFacilityStats().def > 0 ? '+' : ''}{getFacilityStats().def}</div>}
+                      {getFacilityStats().stoneRate > 0 && <div className="text-arcade-yellow">灵石产出: +{getFacilityStats().stoneRate.toFixed(1)}/秒</div>}
+                      {getFacilityStats().elixirMult > 1 && <div className="text-purple-400">丹药增益: +{((getFacilityStats().elixirMult - 1) * 100).toFixed(0)}%</div>}
+                      <div className="text-arcade-green mt-1">升级后: 效果显著提升</div>
                     </div>
                     <button onClick={handleUpgradeArray} className="pixel-button !py-2 !px-4 !text-[10px]">
                       升级 (需 {
@@ -1073,6 +1190,125 @@ export default function Cultivation() {
           <li>游戏会自动保存到本地，你可以随时回来继续你的长生之路。</li>
         </ul>
       </div>
+
+      {/* Init/Reincarnation Modal */}
+      {showInitModal && (
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 font-mono">
+          <div className="max-w-md w-full bg-gray-900 pixel-border border-arcade-blue p-6 space-y-6">
+            <h2 className="text-arcade-blue text-center text-lg">
+              {player.isDead ? "转世重生" : "踏入仙途"}
+            </h2>
+            
+            {initStep === 'name' && (
+              <div className="space-y-4">
+                <p className="text-white/60 text-sm">修行第一步，请定下你的道号：</p>
+                <input 
+                  type="text" 
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                  placeholder="输入你的名字..."
+                  className="w-full bg-black border border-white/20 p-2 text-white outline-none focus:border-arcade-blue"
+                />
+                <button 
+                  disabled={!tempName.trim()}
+                  onClick={() => setInitStep('root')}
+                  className="w-full pixel-button disabled:opacity-50"
+                >
+                  确定
+                </button>
+              </div>
+            )}
+
+            {initStep === 'root' && (
+              <div className="space-y-4 text-center">
+                <p className="text-white/60 text-sm">感应天地灵气，测定你的灵根资质...</p>
+                <button 
+                  onClick={rollSpiritRoot}
+                  className="w-full pixel-button animate-pulse"
+                >
+                  测定灵根
+                </button>
+              </div>
+            )}
+
+            {initStep === 'sect' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-black/40 border border-arcade-yellow">
+                  <p className="text-arcade-yellow text-xs mb-1">测定结果：</p>
+                  <p className="text-white text-sm font-bold">{SPIRIT_ROOTS.find(r => r.id === rolledRootId)?.name}</p>
+                  <p className="text-white/40 text-[10px] mt-1">{SPIRIT_ROOTS.find(r => r.id === rolledRootId)?.desc}</p>
+                </div>
+                
+                <p className="text-white/60 text-xs">选择你的修行起点：</p>
+                <div className="grid gap-2 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-arcade-blue">
+                  <button 
+                    onClick={() => handleInitPlayer(tempName, rolledRootId!, undefined)}
+                    className="p-2 bg-black/40 border border-white/10 text-left hover:border-arcade-blue group"
+                  >
+                    <div className="text-white text-xs">散修 (自由城邦)</div>
+                    <div className="text-white/40 text-[8px]">无拘无束，但资源匮乏。</div>
+                  </button>
+                  {SECTS.map(sect => {
+                    const rootQuality = SPIRIT_ROOTS.find(r => r.id === rolledRootId)?.quality || 0;
+                    const canJoin = rootQuality >= sect.minQuality;
+                    return (
+                      <button 
+                        key={sect.id}
+                        disabled={!canJoin}
+                        onClick={() => handleInitPlayer(tempName, rolledRootId!, sect.id)}
+                        className={`p-2 bg-black/40 border text-left transition-colors ${
+                          canJoin ? 'border-white/10 hover:border-arcade-blue' : 'border-red-900/50 opacity-50 grayscale'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-white text-xs">{sect.name} ({sect.rank})</span>
+                          {!canJoin && <span className="text-red-500 text-[8px]">资质不足</span>}
+                        </div>
+                        <div className="text-white/40 text-[8px]">{sect.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Death Modal */}
+      {player.isDead && !showInitModal && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 font-mono">
+          <div className="max-w-md w-full bg-gray-900 pixel-border border-red-600 p-8 text-center space-y-8">
+            <h2 className="text-red-600 text-2xl animate-pulse">道消身死</h2>
+            <div className="space-y-4">
+              <p className="text-white/60 text-sm">
+                [{player.name}] 这一世的修行已到尽头。
+              </p>
+              <p className="text-white/40 text-xs italic">
+                "修仙之路，本就是逆天而行，陨落亦是常态..."
+              </p>
+            </div>
+            <div className="flex flex-col gap-4">
+              <button 
+                onClick={() => {
+                  setShowInitModal(true);
+                  setInitStep('name');
+                  setTempName("");
+                }}
+                className="w-full pixel-button !bg-red-900/40 hover:!bg-red-800/60"
+              >
+                转世重生
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-white/20 text-[10px] hover:text-white/40 transition-colors"
+              >
+                结束游戏
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reincarnation Confirmation Modal */}
       {showReincarnationConfirm && (
