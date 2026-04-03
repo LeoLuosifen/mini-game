@@ -78,7 +78,12 @@ export const MARKET_POOL = [
   { id: 'def_charm', name: "护身符", desc: "提升防御力", costBase: 400, currencyType: 'low', effect: { defense: 5 } },
   { id: 'def_shield', name: "玄武甲片", desc: "大幅提升防御力", costBase: 1800, currencyType: 'high', effect: { defense: 25 } },
   { id: 'array_guide', name: "阵法心得", desc: "提升聚灵阵效率（额外加成）", costBase: 1000, currencyType: 'high', effect: { elixir: 5 } },
-  { id: 'immortal_pill', name: "飞升丹", desc: "传说中的神丹，大幅提升各项属性", costBase: 500, currencyType: 'top', effect: { attack: 100, defense: 50, hp: 1000, savvy: 20 } }
+  { id: 'tribulation_pill', name: "渡劫丹", desc: "增加20%渡劫成功率", costBase: 3000, currencyType: 'high', effect: {} },
+  { id: 'immortal_pill', name: "飞升丹", desc: "传说中的神丹，大幅提升各项属性并增加30%渡劫成功率", costBase: 500, currencyType: 'top', effect: { attack: 100, defense: 50, hp: 1000, savvy: 20 } },
+  { id: 'jiedan_pill', name: "结丹丹", desc: "帮助突破到金丹期的瓶颈", costBase: 5000, currencyType: 'high', effect: { breakthrough: 'jiedan' } },
+  { id: 'yingbian_pill', name: "婴变丹", desc: "帮助突破到元婴期的瓶颈", costBase: 10000, currencyType: 'high', effect: { breakthrough: 'yingbian' } },
+  { id: 'huashen_pill', name: "化神丹", desc: "帮助突破到化神期的瓶颈", costBase: 20000, currencyType: 'top', effect: { breakthrough: 'huashen' } },
+  { id: 'pozhang_pill', name: "破障丹", desc: "帮助突破灵根限制，提升境界上限", costBase: 30000, currencyType: 'top', effect: { breakthrough: 'pozhang' } }
 ];
 
 export const WORK_TASKS = [
@@ -201,6 +206,9 @@ export interface PlayerData {
   spiritRootId?: string;
   sectId?: string;
   isDead?: boolean;
+  rootBreakthroughLevel?: number; // 灵根突破等级，每突破一次增加1
+  specialRoot?: string; // 特殊灵根或体质
+  hasBreakthroughPill?: boolean; // 是否服用过突破丹药
 }
 
 export const STORAGE_KEY = 'pixel_joy_cultivation_save';

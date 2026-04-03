@@ -109,7 +109,7 @@ export default function Cultivation() {
     switch (player.sectId) {
       case 'tianxuan': return { ...base, name: '剑意碑', atk: level * 5, expMult: 1.2 + level * 0.02, stoneRate: 0, desc: '感悟无上剑意，磨砺神魂，修为自成。额外提升攻击力。' };
       case 'youming': return { ...base, name: '炼魂炉', def: level * 3, expMult: 1.5 + level * 0.03, stoneRate: 0, desc: '炼化残魂，抽取阴冥之气，强行提升修为。额外提升防御力。' };
-      case 'wanbao': return { ...base, name: '聚宝盆', expMult: 1.1 + level * 0.01, stoneRate: level * 0.2, desc: '以财通神，灵石共鸣，修为随财富增长。每秒产生少量下品灵石。' };
+      case 'wanbao': return { ...base, name: '聚宝盆', expMult: 1.1 + level * 0.01, stoneRate: level * 0.5, desc: '以财通神，灵石共鸣，修为随财富增长。随等级提升产出更高品质的灵石。' };
       case 'guixu': return { ...base, name: '归墟眼', atk: level * 2, def: level * 2, expMult: 2.5 + level * 0.05, stoneRate: 0, desc: '沟通无尽归墟，吞噬天地灵气，修为如海纳百川。全方位提升。' };
       case 'blood': return { ...base, name: '化血池', atk: level * 8, def: -level * 2, expMult: 3.0 + level * 0.08, stoneRate: 0, desc: '以血为引，逆天改命，修为进境极快。极大提升攻击但降低防御。' };
       case 'qingyu': return { ...base, name: '灵药园', expMult: 1.3 + level * 0.02, elixirMult: 2.0 + level * 0.1, stoneRate: 0, desc: '培育灵草，药香扑鼻，修为在草木荣枯中增长。丹药加成随等级提升。' };
@@ -173,6 +173,35 @@ export default function Cultivation() {
     return 0.95; // 小境界突破较易
   };
 
+  const getBreakthroughInfo = () => {
+    const nextStageIndex = player.stageIndex + 1;
+    const isMajorBreakthrough = player.stageIndex % 10 === 0 && player.stageIndex !== 0;
+    const needTribulation = nextStageIndex >= 30 && isMajorBreakthrough;
+    
+    let chance = getBreakthroughChance();
+    let message = "突破境界";
+    
+    if (needTribulation) {
+      const tribulationLevel = Math.floor((nextStageIndex - 1) / 10) - 2;
+      const baseTribulationChance = Math.max(0.1, 0.8 - (tribulationLevel * 0.15));
+      
+      let tribulationBonus = 0;
+      if (player.inventory['tribulation_pill']) {
+        tribulationBonus += 0.2;
+      }
+      if (player.inventory['immortal_pill']) {
+        tribulationBonus += 0.3;
+      }
+      const savvyBonus = (player.savvy - 10) * 0.01;
+      tribulationBonus += Math.max(0, Math.min(0.3, savvyBonus));
+      
+      chance = Math.min(0.95, baseTribulationChance + tribulationBonus);
+      message = "渡劫突破";
+    }
+    
+    return { chance, message };
+  };
+
   // --- Actions ---
   const addLog = (msg: string) => {
     setLogs(prev => [msg, ...prev].slice(0, 50));
@@ -203,7 +232,10 @@ export default function Cultivation() {
       maxHp: 100,
       savvy: 10,
       inventory: {},
-      isDead: false
+      isDead: false,
+      rootBreakthroughLevel: 0,
+      specialRoot: undefined,
+      hasBreakthroughPill: false
     };
     
     setPlayer(nextPlayer);
@@ -259,41 +291,93 @@ export default function Cultivation() {
     // 检查灵根境界上限
     const root = SPIRIT_ROOTS.find(r => r.id === player.spiritRootId);
     if (root) {
-      let maxStageIndex = Infinity;
+      let baseMaxStageIndex = Infinity;
       switch (root.id) {
         case 'waste': // 废灵根 - 筑基期
-          maxStageIndex = 20; // 筑基1层
+          baseMaxStageIndex = 20; // 筑基1层
           break;
         case 'pseudo': // 伪灵根 - 筑基巅峰
-          maxStageIndex = 29; // 筑基10层
+          baseMaxStageIndex = 29; // 筑基10层
           break;
         case 'true': // 真灵根 - 金丹期
-          maxStageIndex = 30; // 金丹1层
+          baseMaxStageIndex = 30; // 金丹1层
           break;
         case 'earth': // 地灵根 - 元婴期
-          maxStageIndex = 40; // 元婴1层
+          baseMaxStageIndex = 40; // 元婴1层
           break;
         case 'heaven': // 天灵根 - 元婴巅峰/化神
-          maxStageIndex = 49; // 元婴10层
+          baseMaxStageIndex = 49; // 元婴10层
           break;
         case 'mutated': // 变异灵根 - 化神/合体
-          maxStageIndex = 60; // 合体1层
+          baseMaxStageIndex = 60; // 合体1层
           break;
         case 'special': // 特殊体质 - 无上限
-          maxStageIndex = Infinity;
+          baseMaxStageIndex = Infinity;
           break;
       }
 
+      // 计算突破后的上限
+      let maxStageIndex = baseMaxStageIndex;
+      
+      // 灵根突破等级的影响（每突破一次增加一个大境界）
+      if (player.rootBreakthroughLevel) {
+        maxStageIndex += player.rootBreakthroughLevel * 10;
+      }
+      
+      // 特殊灵根或体质的影响
+      if (player.specialRoot) {
+        maxStageIndex = Infinity;
+      }
+      
+      // 突破丹药的影响
+      if (player.hasBreakthroughPill) {
+        maxStageIndex += 10; // 增加一个大境界
+      }
+
       if (player.stageIndex >= maxStageIndex) {
-        addLog(`你的${root.name}资质有限，无法突破到更高境界！需要特殊机缘或重获新生。`);
+        addLog(`你的${root.name}资质有限，无法突破到更高境界！需要寻找特殊机缘或服用突破丹药。`);
         return;
       }
     }
 
-    const chance = getBreakthroughChance();
     const currentMajorRealm = REALMS[Math.floor((player.stageIndex - 1) / 10) + 1] || "凡人";
     const isMajorBreakthrough = player.stageIndex % 10 === 0 && player.stageIndex !== 0;
+    const nextStageIndex = player.stageIndex + 1;
+    const nextMajorRealm = REALMS[Math.floor((nextStageIndex - 1) / 10) + 1] || "凡人";
     const msgSet = BREAKTHROUGH_MESSAGES[currentMajorRealm];
+
+    // 检查是否需要渡劫（从金丹期开始）
+    const needTribulation = nextStageIndex >= 30 && isMajorBreakthrough;
+    let chance = getBreakthroughChance();
+
+    if (needTribulation) {
+      // 计算渡劫难度和成功率
+      const tribulationLevel = Math.floor((nextStageIndex - 1) / 10) - 2; // 从金丹开始计算
+      const baseTribulationChance = Math.max(0.1, 0.8 - (tribulationLevel * 0.15));
+      
+      // 辅助渡劫的因素
+      let tribulationBonus = 0;
+      
+      // 检查是否有渡劫辅助物品
+      if (player.inventory['tribulation_pill']) {
+        tribulationBonus += 0.2;
+      }
+      if (player.inventory['immortal_pill']) {
+        tribulationBonus += 0.3;
+      }
+      
+      // 悟性对渡劫的影响
+      const savvyBonus = (player.savvy - 10) * 0.01;
+      tribulationBonus += Math.max(0, Math.min(0.3, savvyBonus));
+      
+      // 最终渡劫成功率
+      chance = Math.min(0.95, baseTribulationChance + tribulationBonus);
+      
+      addLog(`你感受到天地法则的威压，即将迎来${nextMajorRealm}劫！`);
+      addLog(`渡劫成功率: ${Math.floor(chance * 100)}%`);
+    } else {
+      chance = getBreakthroughChance();
+    }
 
     if (Math.random() < chance) {
       setPlayer(prev => {
@@ -307,23 +391,52 @@ export default function Cultivation() {
           maxHp: prev.maxHp + hpGain,
           hp: prev.maxHp + hpGain // Restore to full (new max)
         };
+        
+        // 消耗渡劫辅助物品
+        if (needTribulation) {
+          if (next.inventory['tribulation_pill']) {
+            next.inventory['tribulation_pill']--;
+          }
+          if (next.inventory['immortal_pill']) {
+            next.inventory['immortal_pill']--;
+          }
+          
+          // 渡劫重塑灵根的机会
+          if (Math.random() < 0.3) { // 30%的几率
+            if (!next.rootBreakthroughLevel) next.rootBreakthroughLevel = 0;
+            next.rootBreakthroughLevel += 1;
+            addLog("天劫之力淬炼了你的灵根，灵根品质得到提升！");
+          }
+        }
+        
         saveGame(next);
         return next;
       });
       
       const successMsg = isMajorBreakthrough && msgSet ? msgSet.success : `恭喜！你成功突破到了 ${getRealmName(player.stageIndex + 1)}！`;
       addLog(successMsg);
-      addLog("突破成功，气血已完全恢复，体质得到进一步强化！");
+      if (needTribulation) {
+        addLog("渡劫成功！你成功抵御了天地法则的考验，修为更上一层楼！");
+      } else {
+        addLog("突破成功，气血已完全恢复，体质得到进一步强化！");
+      }
       setConsecutiveFails(0);
       updateNpcQuote();
     } else {
       setPlayer(prev => {
-        const next = { ...prev, exp: Math.floor(prev.exp * 0.7) };
+        const next = { ...prev, exp: Math.floor(prev.exp * 0.5) };
+        // 渡劫失败惩罚更严重
+        if (needTribulation) {
+          next.hp = Math.max(1, Math.floor(prev.hp * 0.3));
+        }
         saveGame(next);
         return next;
       });
-      const failMsg = isMajorBreakthrough && msgSet ? msgSet.fail : "突破失败！灵力反噬，损失了三成修为...";
+      const failMsg = isMajorBreakthrough && msgSet ? msgSet.fail : "突破失败！灵力反噬，损失了五成修为...";
       addLog(failMsg);
+      if (needTribulation) {
+        addLog("渡劫失败！你被天雷重创，需要静养恢复。");
+      }
       setConsecutiveFails(prev => prev + 1);
       updateNpcQuote();
     }
@@ -342,6 +455,7 @@ export default function Cultivation() {
     let expGain = 0;
     let savvyGain = 0;
     let hpMaxGain = 0;
+    let specialItem = null;
 
     const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
 
@@ -400,6 +514,47 @@ export default function Cultivation() {
       }
     }
 
+    // 随机获得天材地宝或功法（低概率）
+    if (Math.random() < 0.05) { // 5%的概率获得特殊物品
+      const specialItems = [];
+      
+      // 天材地宝
+      specialItems.push(
+        { id: 'xiling_grass', name: "洗灵草", desc: "提纯灵根，提升灵根品质", effect: { root: 'purify' } },
+        { id: 'wannian_lingzhi', name: "万年灵芝", desc: "大幅提升修为，有机会突破瓶颈", effect: { exp: 5000 } },
+        { id: 'leiling_zhu', name: "雷灵珠", desc: "蕴含雷属性力量的灵珠，可提升灵根品质", effect: { root: 'purify' } },
+        { id: 'bingsui', name: "冰髓", desc: "极寒之地的冰髓，可提升灵根品质", effect: { root: 'purify' } },
+        { id: 'fenghuang_xue', name: "凤凰血", desc: "凤凰的精血，可强化灵根", effect: { root: 'purify' } },
+        { id: 'lingmai_shui', name: "灵脉水", desc: "灵脉中流出的灵水，可提升修为", effect: { exp: 3000 } },
+        { id: 'shenmu_ye', name: "神木液", desc: "千年神木的树液，可提升悟性", effect: { savvy: 10 } }
+      );
+      
+      // 功法（只能获取一次）
+      if (!player.inventory['wuxing_lunhui']) {
+        specialItems.push({ id: 'wuxing_lunhui', name: "五行轮回功", desc: "废灵根专用功法，可绕过灵根限制", effect: { skill: 'wuxing' } });
+      }
+      if (!player.inventory['hundun_jue']) {
+        specialItems.push({ id: 'hundun_jue', name: "混沌诀", desc: "无视灵根限制的顶级功法", effect: { skill: 'hundun' } });
+      }
+      if (!player.inventory['lianti_gong']) {
+        specialItems.push({ id: 'lianti_gong', name: "炼体功法", desc: "不依赖灵气的炼体之法", effect: { skill: 'lianti' } });
+      }
+      if (!player.inventory['lingbao_jue']) {
+        specialItems.push({ id: 'lingbao_jue', name: "灵宝诀", desc: "专修法宝的功法，提升法宝威力", effect: { skill: 'lingbao' } });
+      }
+      if (!player.inventory['taoist_heart']) {
+        specialItems.push({ id: 'taoist_heart', name: "太上心法", desc: "提升悟性和修炼速度", effect: { skill: 'taoist' } });
+      }
+      if (!player.inventory['blood_martial']) {
+        specialItems.push({ id: 'blood_martial', name: "血武经", desc: "以血养气，提升攻击力", effect: { skill: 'blood' } });
+      }
+      
+      if (specialItems.length > 0) {
+        specialItem = specialItems[Math.floor(Math.random() * specialItems.length)];
+        logMsg += `\n你在历练中意外发现了 [${specialItem.name}]！`;
+      }
+    }
+
     setPlayer(prev => {
       const req = getExpRequirement(prev.stageIndex);
       const currentSavvy = prev.savvy || 10;
@@ -414,8 +569,15 @@ export default function Cultivation() {
         exp: Math.min(req, Math.max(0, prev.exp + expGain)),
         savvy: currentSavvy + (savvyGain || 0),
         maxHp: currentMaxHp + (hpMaxGain || 0),
-        hp: Math.min(currentMaxHp + (hpMaxGain || 0), currentHp + (hpMaxGain || 0))
+        hp: Math.min(currentMaxHp + (hpMaxGain || 0), currentHp + (hpMaxGain || 0)),
+        inventory: { ...prev.inventory }
       };
+      
+      // 添加特殊物品到背包
+      if (specialItem) {
+        next.inventory[specialItem.id] = (next.inventory[specialItem.id] || 0) + 1;
+      }
+      
       saveGame(next);
       return next;
     });
@@ -521,6 +683,79 @@ export default function Cultivation() {
       }
       if (item.effect.attack) next.attack += item.effect.attack;
       if (item.effect.defense) next.defense += item.effect.defense;
+      
+      // 处理突破丹药
+      if ('breakthrough' in item.effect && item.effect.breakthrough) {
+        switch (item.effect.breakthrough) {
+          case 'jiedan':
+            next.hasBreakthroughPill = true;
+            addLog("你服用了结丹丹，感觉体内灵气涌动，似乎有突破瓶颈的希望！");
+            break;
+          case 'yingbian':
+            next.hasBreakthroughPill = true;
+            addLog("你服用了婴变丹，元婴雏形在丹田中形成，突破瓶颈的机会大大增加！");
+            break;
+          case 'huashen':
+            next.hasBreakthroughPill = true;
+            addLog("你服用了化神丹，神魂变得强大，突破到化神期的瓶颈松动了！");
+            break;
+          case 'pozhang':
+            if (!next.rootBreakthroughLevel) next.rootBreakthroughLevel = 0;
+            next.rootBreakthroughLevel += 1;
+            addLog("你服用了破障丹，灵根得到滋养，境界上限提升了！");
+            break;
+        }
+      }
+      
+      // 处理天材地宝
+      if ('root' in item.effect && item.effect.root) {
+        if (item.effect.root === 'purify') {
+          addLog("你服用了洗灵草，灵根得到提纯，品质有所提升！");
+          // 这里可以添加灵根品质提升的逻辑
+        }
+      }
+      
+      // 处理修为提升
+      if ('exp' in item.effect && item.effect.exp) {
+        const req = getExpRequirement(next.stageIndex);
+        next.exp = Math.min(req, next.exp + item.effect.exp);
+        addLog(`你服用了万年灵芝，获得了大量修为！`);
+      }
+      
+      // 处理特殊功法
+      if ('skill' in item.effect && item.effect.skill) {
+        switch (item.effect.skill) {
+          case 'wuxing':
+            addLog("你习得五行轮回功，废灵根的限制被大幅削弱！");
+            if (!next.rootBreakthroughLevel) next.rootBreakthroughLevel = 0;
+            next.rootBreakthroughLevel += 2;
+            break;
+          case 'hundun':
+            addLog("你习得混沌诀，灵根限制对你不再有效！");
+            next.specialRoot = 'hundun';
+            break;
+          case 'lianti':
+            addLog("你习得炼体功法，开始不依赖灵气修炼！");
+            if (!next.rootBreakthroughLevel) next.rootBreakthroughLevel = 0;
+            next.rootBreakthroughLevel += 1;
+            next.attack += 50;
+            next.defense += 30;
+            break;
+          case 'lingbao':
+            addLog("你习得灵宝诀，法宝威力大幅提升！");
+            next.attack += 30;
+            break;
+          case 'taoist':
+            addLog("你习得太上心法，悟性和修炼速度提升！");
+            if (!next.savvy) next.savvy = 10;
+            next.savvy += 15;
+            break;
+          case 'blood':
+            addLog("你习得血武经，攻击力大幅提升！");
+            next.attack += 80;
+            break;
+        }
+      }
       
       saveGame(next);
       return next;
@@ -814,12 +1049,24 @@ export default function Cultivation() {
 
         const stoneGain = (facility.stoneRate || 0) / 10; // 100ms interval
         
-        const next = { 
-          ...prev, 
-          exp: prev.exp >= req ? prev.exp : Math.min(req, prev.exp + gain / 10), 
-          hp: newHp,
-          stonesLow: prev.stonesLow + stoneGain
-        };
+        const next = { ...prev, exp: prev.exp >= req ? prev.exp : Math.min(req, prev.exp + gain / 10), hp: newHp };
+        
+        // 根据万宝商会的等级和玩家境界决定产出的灵石类型
+        if (facility.stoneRate > 0 && player.sectId === 'wanbao') {
+          const facilityLevel = player.arrayLevel;
+          const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
+          
+          if (facilityLevel >= 15 || majorRealmLevel >= 7) {
+            // 后期：产出极品灵石
+            next.stonesTop = (prev.stonesTop || 0) + (facility.stoneRate / 100) / 10; // 100ms interval
+          } else if (facilityLevel >= 10 || majorRealmLevel >= 4) {
+            // 中期：产出高级灵石
+            next.stonesHigh = (prev.stonesHigh || 0) + (facility.stoneRate / 10) / 10; // 100ms interval
+          } else {
+            // 前期：产出下品灵石
+            next.stonesLow = prev.stonesLow + facility.stoneRate / 10; // 100ms interval
+          }
+        }
         
         // Auto-save every 10 seconds
         if (Date.now() - lastSaveRef.current > 10000) {
@@ -938,6 +1185,12 @@ export default function Cultivation() {
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">灵根</div>
                 <div className="text-arcade-yellow">{SPIRIT_ROOTS.find(r => r.id === player.spiritRootId)?.name || "无"}</div>
+                {player.rootBreakthroughLevel && player.rootBreakthroughLevel > 0 && (
+                  <div className="text-arcade-green text-[8px] mt-1">突破等级: {player.rootBreakthroughLevel}</div>
+                )}
+                {player.specialRoot && (
+                  <div className="text-arcade-pink text-[8px] mt-1">特殊体质: {player.specialRoot === 'hundun' ? '混沌体' : '特殊体质'}</div>
+                )}
               </div>
               <div className="bg-black/40 p-2 pixel-border border-white/5">
                 <div className="text-white/40">宗门</div>
@@ -1052,16 +1305,32 @@ export default function Cultivation() {
                 </div>
                 
                 <div className="flex flex-col items-center gap-4 w-full max-w-xs">
-                  <button 
-                    onClick={handleBreakthrough}
-                    disabled={player.exp < expReq}
-                    className={`w-full pixel-button ${player.exp < expReq ? 'opacity-50 grayscale cursor-not-allowed' : 'animate-bounce'}`}
-                  >
-                    突破境界 ({Math.floor(getBreakthroughChance() * 100)}% 成功率)
-                  </button>
-                  <p className="text-[9px] text-white/40 text-center">
-                    突破失败将扣除 30% 当前修为，请谨慎行事。
-                  </p>
+                  {(() => {
+                    const { chance, message } = getBreakthroughInfo();
+                    const nextStageIndex = player.stageIndex + 1;
+                    const needTribulation = nextStageIndex >= 30 && (player.stageIndex % 10 === 0 && player.stageIndex !== 0);
+                    return (
+                      <>
+                        <button 
+                          onClick={handleBreakthrough}
+                          disabled={player.exp < expReq}
+                          className={`w-full pixel-button ${player.exp < expReq ? 'opacity-50 grayscale cursor-not-allowed' : 'animate-bounce'}`}
+                        >
+                          {message} ({Math.floor(chance * 100)}% 成功率)
+                        </button>
+                        <p className="text-[9px] text-white/40 text-center">
+                          {needTribulation 
+                            ? "渡劫失败将扣除 50% 当前修为并受到重创，请谨慎行事。" 
+                            : "突破失败将扣除 50% 当前修为，请谨慎行事。"}
+                        </p>
+                        {needTribulation && (
+                          <div className="text-[9px] text-arcade-yellow text-center">
+                            提示：使用渡劫丹或飞升丹可以提高渡劫成功率
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1096,7 +1365,24 @@ export default function Cultivation() {
                       <div className="text-white/40">当前效果: +{getIdleExp().toFixed(1)} 修为/秒</div>
                       {getFacilityStats().atk !== 0 && <div className="text-arcade-pink">攻击加成: {getFacilityStats().atk > 0 ? '+' : ''}{getFacilityStats().atk}</div>}
                       {getFacilityStats().def !== 0 && <div className="text-arcade-blue">防御加成: {getFacilityStats().def > 0 ? '+' : ''}{getFacilityStats().def}</div>}
-                      {getFacilityStats().stoneRate > 0 && <div className="text-arcade-yellow">灵石产出: +{getFacilityStats().stoneRate.toFixed(1)}/秒</div>}
+                      {getFacilityStats().stoneRate > 0 && player.sectId === 'wanbao' && (
+                        <div className="text-arcade-yellow">
+                          {(() => {
+                            const facilityLevel = player.arrayLevel;
+                            const majorRealmLevel = Math.floor(player.stageIndex / 10) + 1;
+                            const stoneRate = getFacilityStats().stoneRate;
+                            
+                            if (facilityLevel >= 15 || majorRealmLevel >= 7) {
+                              return `灵石产出: +${(stoneRate / 100).toFixed(2)} 极品灵石/秒`;
+                            } else if (facilityLevel >= 10 || majorRealmLevel >= 4) {
+                              return `灵石产出: +${(stoneRate / 10).toFixed(2)} 高级灵石/秒`;
+                            } else {
+                              return `灵石产出: +${stoneRate.toFixed(1)} 下品灵石/秒`;
+                            }
+                          })()}
+                        </div>
+                      )}
+                      {getFacilityStats().stoneRate > 0 && player.sectId !== 'wanbao' && <div className="text-arcade-yellow">灵石产出: +{getFacilityStats().stoneRate.toFixed(1)}/秒</div>}
                       {getFacilityStats().elixirMult > 1 && <div className="text-purple-400">丹药增益: +{((getFacilityStats().elixirMult - 1) * 100).toFixed(0)}%</div>}
                       <div className="text-arcade-green mt-1">升级后: 效果显著提升</div>
                     </div>
