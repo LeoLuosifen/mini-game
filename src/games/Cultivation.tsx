@@ -256,6 +256,40 @@ export default function Cultivation() {
       return;
     }
 
+    // 检查灵根境界上限
+    const root = SPIRIT_ROOTS.find(r => r.id === player.spiritRootId);
+    if (root) {
+      let maxStageIndex = Infinity;
+      switch (root.id) {
+        case 'waste': // 废灵根 - 筑基期
+          maxStageIndex = 20; // 筑基1层
+          break;
+        case 'pseudo': // 伪灵根 - 筑基巅峰
+          maxStageIndex = 29; // 筑基10层
+          break;
+        case 'true': // 真灵根 - 金丹期
+          maxStageIndex = 30; // 金丹1层
+          break;
+        case 'earth': // 地灵根 - 元婴期
+          maxStageIndex = 40; // 元婴1层
+          break;
+        case 'heaven': // 天灵根 - 元婴巅峰/化神
+          maxStageIndex = 49; // 元婴10层
+          break;
+        case 'mutated': // 变异灵根 - 化神/合体
+          maxStageIndex = 60; // 合体1层
+          break;
+        case 'special': // 特殊体质 - 无上限
+          maxStageIndex = Infinity;
+          break;
+      }
+
+      if (player.stageIndex >= maxStageIndex) {
+        addLog(`你的${root.name}资质有限，无法突破到更高境界！需要特殊机缘或重获新生。`);
+        return;
+      }
+    }
+
     const chance = getBreakthroughChance();
     const currentMajorRealm = REALMS[Math.floor((player.stageIndex - 1) / 10) + 1] || "凡人";
     const isMajorBreakthrough = player.stageIndex % 10 === 0 && player.stageIndex !== 0;
