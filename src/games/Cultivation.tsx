@@ -78,6 +78,7 @@ export default function Cultivation() {
   const [tempName, setTempName] = useState("");
   const [rolledRootId, setRolledRootId] = useState<string | null>(null);
   const [npcQuote, setNpcQuote] = useState(OLD_MAN_QUOTES[0]);
+  const [hasRingElder, setHasRingElder] = useState(false);
   const [consecutiveFails, setConsecutiveFails] = useState(0);
   const [marketItems, setMarketItems] = useState<any[]>([]);
   const [marketRefreshTime, setMarketRefreshTime] = useState(300); // 5 minutes in seconds
@@ -514,7 +515,7 @@ export default function Cultivation() {
       }
     }
 
-    // 随机获得天材地宝或功法（低概率）
+    // 随机获得天材地宝、功法或戒指老爷爷（低概率）
     if (Math.random() < 0.05) { // 5%的概率获得特殊物品
       const specialItems = [];
       
@@ -547,6 +548,11 @@ export default function Cultivation() {
       }
       if (!player.inventory['blood_martial']) {
         specialItems.push({ id: 'blood_martial', name: "血武经", desc: "以血养气，提升攻击力", effect: { skill: 'blood' } });
+      }
+      
+      // 戒指老爷爷（只能获取一次）
+      if (!hasRingElder) {
+        specialItems.push({ id: 'ring_elder', name: "神秘戒指", desc: "一枚古老的戒指，里面似乎有什么东西在说话...", effect: { ringElder: true } });
       }
       
       if (specialItems.length > 0) {
@@ -755,6 +761,12 @@ export default function Cultivation() {
             next.attack += 80;
             break;
         }
+      }
+      
+      // 处理戒指老爷爷
+      if ('ringElder' in item.effect && item.effect.ringElder) {
+        addLog("戒指中传出一个苍老的声音：'小家伙，有缘人，老夫等你很久了...'你获得了戒指老爷爷的指导！");
+        setHasRingElder(true);
       }
       
       saveGame(next);
@@ -1248,15 +1260,17 @@ export default function Cultivation() {
           </div>
 
           {/* NPC Section */}
-          <div className="mt-auto pt-4 border-t border-white/10">
-            <div className="flex gap-2 items-start">
-              <div className="w-8 h-8 bg-gray-700 pixel-border flex-shrink-0 flex items-center justify-center text-xs">👴</div>
-              <div className="text-[9px] text-arcade-blue leading-relaxed">
-                <span className="text-white/40 block mb-1">戒指里的老爷爷：</span>
-                "{npcQuote}"
+          {hasRingElder && (
+            <div className="mt-auto pt-4 border-t border-white/10">
+              <div className="flex gap-2 items-start">
+                <div className="w-8 h-8 bg-gray-700 pixel-border flex-shrink-0 flex items-center justify-center text-xs">👴</div>
+                <div className="text-[9px] text-arcade-blue leading-relaxed">
+                  <span className="text-white/40 block mb-1">戒指里的老爷爷：</span>
+                  "{npcQuote}"
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Panel: Modules */}
