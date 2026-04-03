@@ -82,6 +82,10 @@ export default function Cultivation() {
   const [marketItems, setMarketItems] = useState<any[]>([]);
   const [marketRefreshTime, setMarketRefreshTime] = useState(300); // 5 minutes in seconds
   const [availableTasks, setAvailableTasks] = useState<any[]>([]);
+  const [stoneExchangeCooldown, setStoneExchangeCooldown] = useState(0); // 12 hours in seconds
+  const [exchangeFrom, setExchangeFrom] = useState<'top' | 'high' | 'low'>('top');
+  const [exchangeTo, setExchangeTo] = useState<'top' | 'high' | 'low'>('high');
+  const [exchangeAmount, setExchangeAmount] = useState(1);
 
   // --- Refs for game loop ---
   const lastSaveRef = useRef(Date.now());
@@ -103,13 +107,13 @@ export default function Cultivation() {
     const base = { atk: 0, def: 0, expMult: 1.0, stoneRate: 0, elixirMult: 1.0 };
     
     switch (player.sectId) {
-      case 'tianxuan': return { ...base, name: '剑意碑', atk: level * 5, expMult: 1.2, desc: '感悟无上剑意，磨砺神魂，修为自成。额外提升攻击力。' };
-      case 'youming': return { ...base, name: '炼魂炉', def: level * 3, expMult: 1.5, desc: '炼化残魂，抽取阴冥之气，强行提升修为。额外提升防御力。' };
-      case 'wanbao': return { ...base, name: '聚宝盆', expMult: 1.1, stoneRate: level * 0.2, desc: '以财通神，灵石共鸣，修为随财富增长。每秒产生少量下品灵石。' };
-      case 'guixu': return { ...base, name: '归墟眼', atk: level * 2, def: level * 2, expMult: 2.5, desc: '沟通无尽归墟，吞噬天地灵气，修为如海纳百川。全方位提升。' };
-      case 'blood': return { ...base, name: '化血池', atk: level * 8, def: -level * 2, expMult: 3.0, desc: '以血为引，逆天改命，修为进境极快。极大提升攻击但降低防御。' };
-      case 'qingyu': return { ...base, name: '灵药园', expMult: 1.3, elixirMult: 2.0, desc: '培育灵草，药香扑鼻，修为在草木荣枯中增长。翻倍丹药加成。' };
-      default: return { ...base, name: '聚灵阵', desc: '通过在洞府中布置聚灵阵，可以大幅提升天地灵气的汇聚速度，实现自动增长修为。' };
+      case 'tianxuan': return { ...base, name: '剑意碑', atk: level * 5, expMult: 1.2 + level * 0.02, stoneRate: 0, desc: '感悟无上剑意，磨砺神魂，修为自成。额外提升攻击力。' };
+      case 'youming': return { ...base, name: '炼魂炉', def: level * 3, expMult: 1.5 + level * 0.03, stoneRate: 0, desc: '炼化残魂，抽取阴冥之气，强行提升修为。额外提升防御力。' };
+      case 'wanbao': return { ...base, name: '聚宝盆', expMult: 1.1 + level * 0.01, stoneRate: level * 0.2, desc: '以财通神，灵石共鸣，修为随财富增长。每秒产生少量下品灵石。' };
+      case 'guixu': return { ...base, name: '归墟眼', atk: level * 2, def: level * 2, expMult: 2.5 + level * 0.05, stoneRate: 0, desc: '沟通无尽归墟，吞噬天地灵气，修为如海纳百川。全方位提升。' };
+      case 'blood': return { ...base, name: '化血池', atk: level * 8, def: -level * 2, expMult: 3.0 + level * 0.08, stoneRate: 0, desc: '以血为引，逆天改命，修为进境极快。极大提升攻击但降低防御。' };
+      case 'qingyu': return { ...base, name: '灵药园', expMult: 1.3 + level * 0.02, elixirMult: 2.0 + level * 0.1, stoneRate: 0, desc: '培育灵草，药香扑鼻，修为在草木荣枯中增长。丹药加成随等级提升。' };
+      default: return { ...base, name: '聚灵阵', expMult: 1.0 + level * 0.05, stoneRate: 0, desc: '通过在洞府中布置聚灵阵，可以大幅提升天地灵气的汇聚速度，实现自动增长修为。' };
     }
   };
 
@@ -188,7 +192,7 @@ export default function Cultivation() {
       sectId,
       stageIndex: 0,
       exp: 0,
-      stonesLow: 0,
+      stonesLow: 200,
       stonesHigh: 0,
       stonesTop: 0,
       arrayLevel: 0,
@@ -491,6 +495,51 @@ export default function Cultivation() {
     addLog(`使用了 [${item.name}]：${item.desc}`);
   };
 
+  const handleStoneExchange = () => {
+    if (isPaused) return;
+    if (stoneExchangeCooldown > 0) {
+      addLog("兑换冷却中，请稍后再试！");
+      return;
+    }
+
+    let exchangeRate = 1;
+    if (exchangeFrom === 'top' && exchangeTo === 'high') {
+      exchangeRate = 1000;
+    } else if (exchangeFrom === 'high' && exchangeTo === 'low') {
+      exchangeRate = 1000;
+    } else if (exchangeFrom === 'high' && exchangeTo === 'top') {
+      exchangeRate = 0.001;
+    } else if (exchangeFrom === 'low' && exchangeTo === 'high') {
+      exchangeRate = 0.001;
+    } else {
+      addLog("无效的兑换方向！");
+      return;
+    }
+
+    const fromKey = exchangeFrom === 'low' ? 'stonesLow' : exchangeFrom === 'high' ? 'stonesHigh' : 'stonesTop';
+    const toKey = exchangeTo === 'low' ? 'stonesLow' : exchangeTo === 'high' ? 'stonesHigh' : 'stonesTop';
+    const fromAmount = player[fromKey];
+    const requiredAmount = exchangeFrom === 'top' || exchangeFrom === 'high' ? exchangeAmount : Math.ceil(exchangeAmount / exchangeRate);
+
+    if (fromAmount < requiredAmount) {
+      addLog(`[${exchangeFrom === 'low' ? '下品' : exchangeFrom === 'high' ? '高级' : '极品'}灵石]不足，无法兑换！`);
+      return;
+    }
+
+    const toAmount = Math.floor(exchangeAmount);
+
+    setPlayer(prev => {
+      const next = { ...prev };
+      next[fromKey] = prev[fromKey] - requiredAmount;
+      next[toKey] = prev[toKey] + toAmount;
+      saveGame(next);
+      return next;
+    });
+
+    addLog(`成功兑换：${requiredAmount} ${exchangeFrom === 'low' ? '下品' : exchangeFrom === 'high' ? '高级' : '极品'}灵石 → ${toAmount} ${exchangeTo === 'low' ? '下品' : exchangeTo === 'high' ? '高级' : '极品'}灵石`);
+    setStoneExchangeCooldown(43200); // 12 hours in seconds
+  };
+
   const handleDoWork = (taskSlot: any, index: number) => {
     if (isPaused || taskSlot.status !== 'available') return;
     
@@ -673,6 +722,12 @@ export default function Cultivation() {
         return prev - 1;
       });
 
+      // Handle Stone Exchange Cooldown
+      setStoneExchangeCooldown(prev => {
+        if (prev <= 0) return 0;
+        return prev - 1;
+      });
+
       // Handle Task Timers
       setAvailableTasks(prev => {
         let changed = false;
@@ -791,6 +846,7 @@ export default function Cultivation() {
     setInitStep('name');
     setTempName("");
     setShowReincarnationConfirm(false);
+    setLogs(["欢迎来到修仙世界，开始你的长生之路吧。"]);
   };
 
   const expReq = getExpRequirement(player.stageIndex);
@@ -1135,6 +1191,57 @@ export default function Cultivation() {
                   <span className="text-[8px] text-white/40">距离下次刷新: {Math.floor(marketRefreshTime / 60)}分{marketRefreshTime % 60}秒</span>
                 </div>
                 
+                {/* 灵石兑换 */}
+                <div className="bg-black/40 p-4 pixel-border border-arcade-green/30">
+                  <h4 className="text-arcade-green text-sm mb-3">灵石兑换</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <select 
+                        value={exchangeFrom} 
+                        onChange={(e) => setExchangeFrom(e.target.value as 'top' | 'high' | 'low')}
+                        className="bg-black/60 text-white text-[10px] px-2 py-1 border border-white/20"
+                      >
+                        <option value="top">极品灵石</option>
+                        <option value="high">高级灵石</option>
+                        <option value="low">下品灵石</option>
+                      </select>
+                      <span className="text-white/40">→</span>
+                      <select 
+                        value={exchangeTo} 
+                        onChange={(e) => setExchangeTo(e.target.value as 'top' | 'high' | 'low')}
+                        className="bg-black/60 text-white text-[10px] px-2 py-1 border border-white/20"
+                      >
+                        <option value="top">极品灵石</option>
+                        <option value="high">高级灵石</option>
+                        <option value="low">下品灵石</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-white/60">数量：</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        value={exchangeAmount} 
+                        onChange={(e) => setExchangeAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="bg-black/60 text-white text-[10px] px-2 py-1 border border-white/20 w-20"
+                      />
+                    </div>
+                    <div className="text-[8px] text-white/40 mb-2">
+                      兑换比例：1极品 = 1000高级 = 1,000,000下品
+                    </div>
+                    <button 
+                      onClick={handleStoneExchange}
+                      disabled={stoneExchangeCooldown > 0}
+                      className={`pixel-button !py-2 !px-4 !text-[10px] ${stoneExchangeCooldown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {stoneExchangeCooldown > 0 
+                        ? `冷却中 (${Math.floor(stoneExchangeCooldown / 3600)}小时${Math.floor((stoneExchangeCooldown % 3600) / 60)}分)` 
+                        : '兑换'}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* 商品列表 */}
                 {marketItems.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-white/20">
                     <div className="text-2xl mb-2">📦</div>

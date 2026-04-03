@@ -154,13 +154,13 @@ export interface SpiritRoot {
 }
 
 export const SPIRIT_ROOTS: SpiritRoot[] = [
-  { id: 'waste', name: "废灵根", quality: 1, prob: 0.75, expBonus: 0.5, desc: "五行俱全，杂乱无章，修炼如龟速。" },
-  { id: 'pseudo', name: "伪灵根", quality: 2, prob: 0.18, expBonus: 0.8, desc: "四属性或三属性分布不均，资质平平。" },
-  { id: 'true', name: "真灵根", quality: 3, prob: 0.05, expBonus: 1.2, desc: "双属性或某属性突出，修炼速度可观。" },
-  { id: 'earth', name: "地灵根", quality: 4, prob: 0.015, expBonus: 1.8, desc: "属性相辅相成，元婴有望，化神可期。" },
-  { id: 'heaven', name: "天灵根", quality: 5, prob: 0.001, expBonus: 3.0, desc: "单一纯属性，天之骄子，修炼无瓶颈。" },
-  { id: 'mutated', name: "变异灵根", quality: 6, prob: 0.003, expBonus: 2.5, desc: "雷、冰、风等变异属性，威力强横。" },
-  { id: 'special', name: "特殊体质", quality: 7, prob: 0.001, expBonus: 5.0, desc: "先天道体或圣体，无视规则，上限极高。" }
+  { id: 'waste', name: "废灵根", quality: 1, prob: 0.65, expBonus: 0.5, desc: "五行俱全，杂乱无章，修炼如龟速。" },
+  { id: 'pseudo', name: "伪灵根", quality: 2, prob: 0.22, expBonus: 0.8, desc: "四属性或三属性分布不均，资质平平。" },
+  { id: 'true', name: "真灵根", quality: 3, prob: 0.08, expBonus: 1.2, desc: "双属性或某属性突出，修炼速度可观。" },
+  { id: 'earth', name: "地灵根", quality: 4, prob: 0.03, expBonus: 1.8, desc: "属性相辅相成，元婴有望，化神可期。" },
+  { id: 'heaven', name: "天灵根", quality: 5, prob: 0.01, expBonus: 3.0, desc: "单一纯属性，天之骄子，修炼无瓶颈。" },
+  { id: 'mutated', name: "变异灵根", quality: 6, prob: 0.008, expBonus: 2.5, desc: "雷、冰、风等变异属性，威力强横。" },
+  { id: 'special', name: "特殊体质", quality: 7, prob: 0.002, expBonus: 5.0, desc: "先天道体或圣体，无视规则，上限极高。" }
 ];
 
 export interface Sect {
