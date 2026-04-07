@@ -109,14 +109,14 @@ export default function Cultivation() {
 
   // --- Formulas ---
   const getExpRequirement = (index: number) => {
-    if (index === 0) return 100;
+    if (index === 0) return 500;
     // Before Golden Core (stageIndex 21), progression is relatively smooth
     if (index < 21) {
-      return Math.floor(200 * Math.pow(1.25, index));
+      return Math.floor(1000 * Math.pow(1.4, index));
     }
     // From Golden Core onwards, the difficulty spikes significantly
-    const baseAtGoldenCore = 200 * Math.pow(1.25, 20);
-    return Math.floor(baseAtGoldenCore * Math.pow(1.4, index - 20));
+    const baseAtGoldenCore = 1000 * Math.pow(1.4, 20);
+    return Math.floor(baseAtGoldenCore * Math.pow(1.6, index - 20));
   };
 
   const getFacilityStats = () => {
@@ -174,12 +174,12 @@ export default function Cultivation() {
     const jitter = (Math.random() * 0.16) - 0.08;
 
     if (difficulty === '普通') {
-      // Min 50%, scales up to 100% at Great Emperor, with jitter
-      return Math.min(1.0, Math.max(0.5, 0.5 + (progress * 0.5) + jitter));
+      // Min 30%, scales up to 100% at Great Emperor, with jitter
+      return Math.min(1.0, Math.max(0.3, 0.3 + (progress * 0.7) + jitter));
     }
     if (difficulty === '困难') {
-      // Min 40%, scales up to 100% at Great Emperor, with jitter
-      return Math.min(1.0, Math.max(0.4, 0.4 + (progress * 0.6) + jitter));
+      // Min 20%, scales up to 100% at Great Emperor, with jitter
+      return Math.min(1.0, Math.max(0.2, 0.2 + (progress * 0.8) + jitter));
     }
     return 1.0;
   }, [player.stageIndex]);
@@ -312,18 +312,31 @@ export default function Cultivation() {
       addLog("修为已达瓶颈，请尽快突破！");
       return;
     }
-    const gain = getManualExp();
-    setPlayer(prev => {
-      const next = { ...prev, exp: Math.min(req, prev.exp + gain) };
-      saveGame(next);
-      return next;
-    });
     
-    // Dynamic log generation
-    const action = CULTIVATION_PARTS.actions[Math.floor(Math.random() * CULTIVATION_PARTS.actions.length)];
-    const sensation = CULTIVATION_PARTS.sensations[Math.floor(Math.random() * CULTIVATION_PARTS.sensations.length)];
-    const result = CULTIVATION_PARTS.results[Math.floor(Math.random() * CULTIVATION_PARTS.results.length)];
-    addLog(`${action}，${sensation}，${result}`);
+    // 修炼失败的概率，基础5%，每个境界突破提高5%，最高50%
+    // 计算境界突破次数（每10级为一个大境界）
+    const realmBreakthroughs = Math.floor(player.stageIndex / 10);
+    const failureChance = Math.min(0.5, 0.05 + (realmBreakthroughs * 0.05));
+    const isFailure = Math.random() < failureChance;
+    
+    if (isFailure) {
+      // 修炼失败，不获得修为
+      addLog("你尝试运转功法，但始终无法参悟其中奥妙，此次修炼毫无进展。");
+    } else {
+      // 修炼成功，获得修为
+      const gain = getManualExp();
+      setPlayer(prev => {
+        const next = { ...prev, exp: Math.min(req, prev.exp + gain) };
+        saveGame(next);
+        return next;
+      });
+      
+      // Dynamic log generation
+      const action = CULTIVATION_PARTS.actions[Math.floor(Math.random() * CULTIVATION_PARTS.actions.length)];
+      const sensation = CULTIVATION_PARTS.sensations[Math.floor(Math.random() * CULTIVATION_PARTS.sensations.length)];
+      const result = CULTIVATION_PARTS.results[Math.floor(Math.random() * CULTIVATION_PARTS.results.length)];
+      addLog(`${action}，${sensation}，${result}`);
+    }
   };
 
   const handleBreakthrough = () => {
@@ -824,13 +837,13 @@ export default function Cultivation() {
 
     let exchangeRate = 1;
     if (exchangeFrom === 'top' && exchangeTo === 'high') {
-      exchangeRate = 1000;
+      exchangeRate = 10;
     } else if (exchangeFrom === 'high' && exchangeTo === 'low') {
-      exchangeRate = 1000;
+      exchangeRate = 100;
     } else if (exchangeFrom === 'high' && exchangeTo === 'top') {
-      exchangeRate = 0.001;
+      exchangeRate = 0.1;
     } else if (exchangeFrom === 'low' && exchangeTo === 'high') {
-      exchangeRate = 0.001;
+      exchangeRate = 0.01;
     } else {
       addLog("无效的兑换方向！");
       return;
@@ -857,7 +870,7 @@ export default function Cultivation() {
     });
 
     addLog(`成功兑换：${requiredAmount} ${exchangeFrom === 'low' ? '下品' : exchangeFrom === 'high' ? '高级' : '极品'}灵石 → ${toAmount} ${exchangeTo === 'low' ? '下品' : exchangeTo === 'high' ? '高级' : '极品'}灵石`);
-    setStoneExchangeCooldown(43200); // 12 hours in seconds
+    setStoneExchangeCooldown(10800); // 3 hours in seconds
   };
 
   const handleDoWork = (taskSlot: any, index: number) => {
