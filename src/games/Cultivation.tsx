@@ -141,11 +141,11 @@ export default function Cultivation() {
     const sectBonus = sect?.expBonus || 1;
     const facility = getFacilityStats();
 
-    // Balanced base gain: 0.1 -> 0.3 -> 0.5 -> ...
-    const baseGain = (player.arrayLevel * 0.2 + 0.1) * facility.expMult;
-    const elixirBonus = 1 + player.elixirCount * 0.2 * (facility.elixirMult || 1.0);
+    // Reduced base gain for slower progression
+    const baseGain = (player.arrayLevel * 0.1 + 0.05) * facility.expMult;
+    const elixirBonus = 1 + player.elixirCount * 0.1 * (facility.elixirMult || 1.0);
     
-    return baseGain * elixirBonus * ((player.savvy || 10) / 10) * rootBonus * sectBonus;
+    return baseGain * elixirBonus * ((player.savvy || 10) / 15) * rootBonus * sectBonus;
   };
 
   const getManualExp = () => {
