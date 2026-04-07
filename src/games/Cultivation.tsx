@@ -62,8 +62,8 @@ export default function Cultivation() {
 
   const getRealmName = (index: number) => {
     if (index === 0) return "凡人";
-    const majorIdx = Math.floor((index - 1) / 10) + 1;
-    const minorIdx = (index - 1) % 10 + 1;
+    const majorIdx = Math.floor(index / 10) + 1;
+    const minorIdx = index % 10 + 1;
     const majorName = REALMS[majorIdx] || "未知";
     if (minorIdx === 10) return `${majorName}巅峰`;
     const chineseNums = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
@@ -101,6 +101,8 @@ export default function Cultivation() {
   const [exchangeAmount, setExchangeAmount] = useState(1);
   const [taskRefreshCooldown, setTaskRefreshCooldown] = useState(0); // 手动刷新冷却时间（秒）
   const [autoTaskRefreshTime, setAutoTaskRefreshTime] = useState(10800); // 自动刷新时间（3小时，秒）
+  const [currentRumor, setCurrentRumor] = useState<any>(null); // 当前传闻
+  const [showRumorModal, setShowRumorModal] = useState(false); // 是否显示传闻模态框
 
   // --- Refs for game loop ---
   const lastSaveRef = useRef(Date.now());
@@ -1026,6 +1028,91 @@ export default function Cultivation() {
     addLog("【系统】任务已刷新，新的任务已经发布！");
   };
 
+  const handleRumorOption = (option: any) => {
+    if (option.action === 'ignore') {
+      addLog("你选择无视传闻，继续专注于修炼。");
+    } else {
+      // 检查风险条件
+      let canProceed = true;
+      let riskMessage = "";
+      
+      if (option.risk) {
+        if (option.risk.stonesLow && player.stonesLow < Math.abs(option.risk.stonesLow)) {
+          canProceed = false;
+          riskMessage = "下品灵石不足，无法进行此行动！";
+        } else if (option.risk.stonesHigh && player.stonesHigh < Math.abs(option.risk.stonesHigh)) {
+          canProceed = false;
+          riskMessage = "高级灵石不足，无法进行此行动！";
+        } else if (option.risk.stonesTop && player.stonesTop < Math.abs(option.risk.stonesTop)) {
+          canProceed = false;
+          riskMessage = "极品灵石不足，无法进行此行动！";
+        } else if (option.risk.hp && player.hp < Math.abs(option.risk.hp)) {
+          canProceed = false;
+          riskMessage = "气血不足，无法进行此行动！";
+        }
+      }
+      
+      if (!canProceed) {
+        addLog(riskMessage);
+      } else {
+        // 应用风险
+        setPlayer(prev => {
+          const next = { ...prev, inventory: { ...prev.inventory } };
+          
+          if (option.risk) {
+            if (option.risk.stonesLow) next.stonesLow = Math.max(0, next.stonesLow + option.risk.stonesLow);
+            if (option.risk.stonesHigh) next.stonesHigh = Math.max(0, next.stonesHigh + option.risk.stonesHigh);
+            if (option.risk.stonesTop) next.stonesTop = Math.max(0, next.stonesTop + option.risk.stonesTop);
+            if (option.risk.hp) next.hp = Math.max(1, next.hp + option.risk.hp);
+          }
+          
+          // 应用奖励
+          if (option.reward) {
+            if (option.reward.stonesLow) next.stonesLow += option.reward.stonesLow;
+            if (option.reward.stonesHigh) next.stonesHigh += option.reward.stonesHigh;
+            if (option.reward.stonesTop) next.stonesTop += option.reward.stonesTop;
+            if (option.reward.exp) {
+              const req = getExpRequirement(next.stageIndex);
+              next.exp = Math.min(req, next.exp + option.reward.exp);
+            }
+            if (option.reward.savvy) next.savvy += option.reward.savvy;
+            if (option.reward.item) {
+              next.inventory[option.reward.item] = (next.inventory[option.reward.item] || 0) + 1;
+            }
+          }
+          
+          saveGame(next);
+          return next;
+        });
+        
+        // 生成结果消息
+        let resultMessage = `你选择了${option.text}，`;
+        if (option.risk) {
+          if (option.risk.stonesLow) resultMessage += `消耗了${Math.abs(option.risk.stonesLow)}下品灵石，`;
+          if (option.risk.stonesHigh) resultMessage += `消耗了${Math.abs(option.risk.stonesHigh)}高级灵石，`;
+          if (option.risk.stonesTop) resultMessage += `消耗了${Math.abs(option.risk.stonesTop)}极品灵石，`;
+          if (option.risk.hp) resultMessage += `受到了${Math.abs(option.risk.hp)}点伤害，`;
+        }
+        if (option.reward) {
+          if (option.reward.stonesLow) resultMessage += `获得了${option.reward.stonesLow}下品灵石，`;
+          if (option.reward.stonesHigh) resultMessage += `获得了${option.reward.stonesHigh}高级灵石，`;
+          if (option.reward.stonesTop) resultMessage += `获得了${option.reward.stonesTop}极品灵石，`;
+          if (option.reward.exp) resultMessage += `获得了${option.reward.exp}点修为，`;
+          if (option.reward.savvy) resultMessage += `悟性提升了${option.reward.savvy}点，`;
+          if (option.reward.item) {
+            const item = MARKET_POOL.find(i => i.id === option.reward.item);
+            if (item) resultMessage += `获得了${item.name}，`;
+          }
+        }
+        resultMessage = resultMessage.slice(0, -1) + "。";
+        addLog(resultMessage);
+      }
+    }
+    
+    setShowRumorModal(false);
+    setCurrentRumor(null);
+  };
+
   // --- Effects ---
   useEffect(() => {
     if (!player.spiritRootId && !showInitModal) {
@@ -1211,8 +1298,9 @@ export default function Cultivation() {
     const interval = setInterval(() => {
       if (isPaused) return;
       const rumor = WORLD_RUMORS[Math.floor(Math.random() * WORLD_RUMORS.length)];
-      addLog(rumor);
-    }, 60000);
+      setCurrentRumor(rumor);
+      setShowRumorModal(true);
+    }, 180000); // 改为3分钟
     return () => clearInterval(interval);
   }, [isPaused]);
 
@@ -1248,6 +1336,27 @@ export default function Cultivation() {
         </div>
       </div>
 
+      {/* Rumor Modal */}
+      {showRumorModal && currentRumor && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-black/90 p-6 pixel-border border-arcade-yellow max-w-md w-full">
+            <h3 className="text-arcade-yellow text-sm mb-4">传闻</h3>
+            <p className="text-white text-[10px] mb-6">{currentRumor.text}</p>
+            <div className="flex flex-col gap-3">
+              {currentRumor.options?.map((option: any, index: number) => (
+                <button
+                  key={index}
+                  onClick={() => handleRumorOption(option)}
+                  className="pixel-button !py-2 !px-4 !text-[10px] hover:!bg-arcade-blue/40"
+                >
+                  {option.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full flex-1 min-h-0">
         {/* Left Panel: Status */}
         <div className="md:col-span-4 bg-black/60 p-4 pixel-border border-arcade-yellow flex flex-col gap-4 overflow-y-auto">
@@ -1269,7 +1378,7 @@ export default function Cultivation() {
               </div>
               <div className="w-full h-3 bg-black/80 pixel-border border-black overflow-hidden">
                 <div 
-                  className="h-full bg-arcade-green transition-all duration-300" 
+                  className="h-full bg-arcade-green transition-all duration-100 ease-linear" 
                   style={{ width: `${progress}%` }}
                 />
               </div>

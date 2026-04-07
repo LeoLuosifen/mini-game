@@ -25,14 +25,274 @@ export const CULTIVATION_PARTS = {
   results: ["修为略有精进。", "灵力更显凝实。", "一丝感悟涌上心头。", "气息稳步攀升。", "根基愈发深厚。", "距离突破又近一步。"]
 };
 
-export const WORLD_RUMORS = [
-  "【传闻】据说极北之地有异宝出世，引得无数老怪前往。",
-  "【传闻】万宝阁今日举行大型拍卖会，压轴宝物竟是一枚九品丹药。",
-  "【传闻】某位隐世大能的洞府被发现，修仙界又要掀起一番腥风血雨了。",
-  "【传闻】听说东海之滨有龙吟声传出，不知是真是假。",
-  "【传闻】最近坊市间的灵石汇率波动剧烈，不少散修叫苦连天。",
-  "【传闻】天剑宗的天才弟子闭关百年，今日终于破关而出了。",
-  "【传闻】南疆瘴气林中出现了一头万年妖王，路过修士请务必小心。"
+export interface Rumor {
+  text: string;
+  options?: {
+    text: string;
+    action: string;
+    reward?: {
+      stonesLow?: number;
+      stonesHigh?: number;
+      stonesTop?: number;
+      exp?: number;
+      savvy?: number;
+      item?: string;
+    };
+    risk?: {
+      stonesLow?: number;
+      stonesHigh?: number;
+      stonesTop?: number;
+      hp?: number;
+    };
+  }[];
+}
+
+export const WORLD_RUMORS: Rumor[] = [
+  {
+    text: "【传闻】据说极北之地有异宝出世，引得无数老怪前往。",
+    options: [
+      {
+        text: "前往极北之地探索",
+        action: "explore",
+        reward: {
+          stonesHigh: 50,
+          exp: 200,
+          item: "elixir_large"
+        },
+        risk: {
+          hp: -30
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】万宝阁今日举行大型拍卖会，压轴宝物竟是一枚九品丹药。",
+    options: [
+      {
+        text: "前往万宝阁参加拍卖会",
+        action: "auction",
+        reward: {
+          item: "immortal_pill"
+        },
+        risk: {
+          stonesHigh: -1000
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】某位隐世大能的洞府被发现，修仙界又要掀起一番腥风血雨了。",
+    options: [
+      {
+        text: "前往洞府寻宝",
+        action: "treasure",
+        reward: {
+          stonesTop: 10,
+          exp: 500,
+          savvy: 5
+        },
+        risk: {
+          hp: -50,
+          stonesHigh: -200
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】听说东海之滨有龙吟声传出，不知是真是假。",
+    options: [
+      {
+        text: "前往东海之滨一探究竟",
+        action: "investigate",
+        reward: {
+          stonesHigh: 30,
+          exp: 150,
+          item: "hp_essence"
+        },
+        risk: {
+          hp: -20
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】最近坊市间的灵石汇率波动剧烈，不少散修叫苦连天。",
+    options: [
+      {
+        text: "前往坊市兑换灵石",
+        action: "exchange",
+        reward: {
+          stonesLow: 500
+        },
+        risk: {
+          stonesHigh: -5
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】天剑宗的天才弟子闭关百年，今日终于破关而出了。",
+    options: [
+      {
+        text: "前往天剑宗一睹风采",
+        action: "visit",
+        reward: {
+          exp: 100,
+          savvy: 2
+        },
+        risk: {
+          stonesLow: -100
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】南疆瘴气林中出现了一头万年妖王，路过修士请务必小心。",
+    options: [
+      {
+        text: "前往南疆挑战妖王",
+        action: "challenge",
+        reward: {
+          stonesTop: 20,
+          exp: 800,
+          item: "atk_gem"
+        },
+        risk: {
+          hp: -80,
+          stonesHigh: -300
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】西荒沙漠中出现了一座移动的沙城，据说里面藏有上古秘宝。",
+    options: [
+      {
+        text: "前往西荒沙漠寻找沙城",
+        action: "desert",
+        reward: {
+          stonesHigh: 80,
+          exp: 300,
+          item: "savvy_book"
+        },
+        risk: {
+          hp: -40,
+          stonesLow: -200
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】北域冰原中发现了一株千年雪莲，具有起死回生之效。",
+    options: [
+      {
+        text: "前往北域冰原寻找雪莲",
+        action: "snow",
+        reward: {
+          stonesHigh: 60,
+          exp: 250,
+          item: "hp_pill"
+        },
+        risk: {
+          hp: -35
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】中洲城的拍卖行将拍卖一把仙器，引起了各方势力的关注。",
+    options: [
+      {
+        text: "前往中洲城参加拍卖会",
+        action: "auction2",
+        reward: {
+          item: "def_shield"
+        },
+        risk: {
+          stonesTop: -5
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】一位神秘的炼丹大师在附近开设了炼丹坊，据说能炼制各种珍贵丹药。",
+    options: [
+      {
+        text: "前往炼丹坊购买丹药",
+        action: "alchemy",
+        reward: {
+          item: "elixir_mid"
+        },
+        risk: {
+          stonesLow: -300
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  },
+  {
+    text: "【传闻】最近有一批海外修士来到中土，带来了许多稀有物品。",
+    options: [
+      {
+        text: "与海外修士交易",
+        action: "trade",
+        reward: {
+          stonesHigh: 40,
+          item: "array_guide"
+        },
+        risk: {
+          stonesLow: -500
+        }
+      },
+      {
+        text: "无视传闻，继续修炼",
+        action: "ignore"
+      }
+    ]
+  }
 ];
 
 export const MONSTERS = [
@@ -223,39 +483,39 @@ export const TITLES = {
   // 炼气期
   1: "炼气弟子",
   5: "炼气中期",
-  9: "炼气后期",
+  9: "炼气巅峰",
   // 筑基期
   10: "筑基修士",
   15: "筑基中期",
-  19: "筑基后期",
+  19: "筑基巅峰",
   // 金丹期
   20: "金丹真人",
   25: "金丹中期",
-  29: "金丹后期",
+  29: "金丹巅峰",
   // 元婴期
   30: "元婴真君",
   35: "元婴中期",
-  39: "元婴后期",
+  39: "元婴巅峰",
   // 化神期
   40: "化神尊者",
   45: "化神中期",
-  49: "化神后期",
+  49: "化神巅峰",
   // 炼虚期
   50: "炼虚仙人",
   55: "炼虚中期",
-  59: "炼虚后期",
+  59: "炼虚巅峰",
   // 合体期
   60: "合体大能",
   65: "合体中期",
-  69: "合体后期",
+  69: "合体巅峰",
   // 大乘期
   70: "大乘圣君",
   75: "大乘中期",
-  79: "大乘后期",
+  79: "大乘巅峰",
   // 渡劫期
   80: "渡劫准帝",
   85: "渡劫中期",
-  89: "渡劫后期",
+  89: "渡劫巅峰",
   // 大帝期
   90: "万古大帝",
   95: "混沌主宰",
