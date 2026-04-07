@@ -90,12 +90,18 @@ export const WORK_TASKS = [
   { name: "打扫炼丹房", difficulty: "简单", rewardBase: 30, desc: "虽然辛苦，但偶尔能闻到丹香，令人神清气爽。" },
   { name: "看守药园", difficulty: "简单", rewardBase: 50, desc: "枯燥的差事，但胜在安全稳妥。" },
   { name: "灵田除草", difficulty: "简单", rewardBase: 40, desc: "小心那些会咬人的灵草，它们可不安分。" },
+  { name: "挑水砍柴", difficulty: "简单", rewardBase: 25, desc: "基础的杂活，虽然累但能锻炼体魄。" },
+  { name: "擦拭法器", difficulty: "简单", rewardBase: 35, desc: "需要细心呵护这些宝贵的法器。" },
   { name: "后山采药", difficulty: "普通", rewardBase: 150, desc: "需要避开一些低级妖兽，有一定风险。" },
   { name: "驱赶灵兽", difficulty: "普通", rewardBase: 200, desc: "那些调皮的灵鹤总是乱跑，真让人头疼。" },
   { name: "整理经阁", difficulty: "普通", rewardBase: 180, desc: "在书海中寻找遗失的卷轴，或许能增长见识。" },
+  { name: "护送弟子", difficulty: "普通", rewardBase: 160, desc: "保护新入门的弟子前往指定地点。" },
+  { name: "采集灵矿", difficulty: "普通", rewardBase: 170, desc: "深入矿洞采集珍贵的灵矿。" },
   { name: "押送货运", difficulty: "困难", rewardBase: 600, desc: "路途遥远，且常有劫匪出没，非强者不可为。" },
   { name: "镇压魔窟", difficulty: "困难", rewardBase: 1000, desc: "九死一生的任务，但奖励极其丰厚。" },
-  { name: "猎杀悬赏", difficulty: "困难", rewardBase: 800, desc: "目标是为祸一方的凶兽，需要极强的战斗力。" }
+  { name: "猎杀悬赏", difficulty: "困难", rewardBase: 800, desc: "目标是为祸一方的凶兽，需要极强的战斗力。" },
+  { name: "探索秘境", difficulty: "困难", rewardBase: 900, desc: "进入危险的秘境寻找宝藏。" },
+  { name: "挑战擂台", difficulty: "困难", rewardBase: 700, desc: "在宗门擂台上挑战其他弟子。" }
 ];
 
 export const OLD_MAN_QUOTES = [

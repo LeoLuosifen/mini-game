@@ -87,6 +87,8 @@ export default function Cultivation() {
   const [exchangeFrom, setExchangeFrom] = useState<'top' | 'high' | 'low'>('top');
   const [exchangeTo, setExchangeTo] = useState<'top' | 'high' | 'low'>('high');
   const [exchangeAmount, setExchangeAmount] = useState(1);
+  const [taskRefreshCooldown, setTaskRefreshCooldown] = useState(0); // 手动刷新冷却时间（秒）
+  const [autoTaskRefreshTime, setAutoTaskRefreshTime] = useState(10800); // 自动刷新时间（3小时，秒）
 
   // --- Refs for game loop ---
   const lastSaveRef = useRef(Date.now());
@@ -847,7 +849,7 @@ export default function Cultivation() {
   const completeWork = useCallback((index: number) => {
     setAvailableTasks(prev => {
       const taskSlot = prev[index];
-      if (!taskSlot || taskSlot.status !== 'completed_pending') return prev;
+      if (!taskSlot || taskSlot.status !== 'processing') return prev;
 
       // Use the stored success chance instead of calculating it fresh
       const successChance = taskSlot.successChance ?? getTaskSuccessChance(taskSlot.task.difficulty);
@@ -861,13 +863,31 @@ export default function Cultivation() {
         const currencyKey = stoneType === 'low' ? 'stonesLow' : stoneType === 'high' ? 'stonesHigh' : 'stonesTop';
         const currencyName = stoneType === 'low' ? '下品灵石' : stoneType === 'high' ? '高级灵石' : '极品灵石';
         
+        // 获得物品奖励（使用任务中显示的可能物品）
+        let specialItem = taskSlot.possibleItem;
+        
         setPlayer(p => {
-          const next = { ...p, [currencyKey]: p[currencyKey] + reward };
-          saveGame(next);
-          return next;
+          const nextPlayer = { 
+            ...p, 
+            [currencyKey]: p[currencyKey] + reward,
+            inventory: { ...p.inventory }
+          };
+          
+          // 添加物品到背包
+          if (specialItem) {
+            nextPlayer.inventory[specialItem.id] = (nextPlayer.inventory[specialItem.id] || 0) + 1;
+          }
+          
+          saveGame(nextPlayer);
+          return nextPlayer;
         });
 
-        addLog(`完成任务 [${taskSlot.task.name}]：${taskSlot.task.desc} 获得${currencyName} x${reward}。`);
+        let logMsg = `完成任务 [${taskSlot.task.name}]：${taskSlot.task.desc} 获得${currencyName} x${reward}`;
+        if (specialItem) {
+          logMsg += `，以及 [${specialItem.name}]`;
+        }
+        logMsg += "。";
+        addLog(logMsg);
       } else {
         addLog(`任务失败 [${taskSlot.task.name}]：由于修为不足或意外干扰，你未能完成任务，空手而归。`);
         setNpcQuote("意料之中，就你这点微末道行，还想接这种差事？");
@@ -962,11 +982,37 @@ export default function Cultivation() {
       } else {
         stoneType = 'top';
       }
+
+      // 随机决定是否有物品奖励
+      let possibleItem = null;
+      if (Math.random() < 0.2) { // 20%的概率有物品奖励
+        const possibleItems = [
+          { id: 'elixir_small', name: "小还丹", desc: "提升少量修炼效率" },
+          { id: 'savvy_scroll', name: "悟道残页", desc: "提升少量悟性" },
+          { id: 'hp_pill', name: "补血丹", desc: "提升气血上限" },
+          { id: 'atk_stone', name: "磨刀石", desc: "提升攻击力" },
+          { id: 'def_charm', name: "护身符", desc: "提升防御力" }
+        ];
+        possibleItem = possibleItems[Math.floor(Math.random() * possibleItems.length)];
+      }
+
       const successChance = getTaskSuccessChance(task.difficulty);
-      selected.push({ task, status: 'available', timer: 0, totalTime: 0, stoneType, successChance });
+      selected.push({ task, status: 'available', timer: 0, totalTime: 0, stoneType, successChance, possibleItem });
     }
+    
     setAvailableTasks(selected);
   }, [getTaskSuccessChance]);
+
+  const handleManualTaskRefresh = () => {
+    if (taskRefreshCooldown > 0) {
+      addLog("任务刷新冷却中，请稍后再试！");
+      return;
+    }
+    
+    refreshTasks();
+    setTaskRefreshCooldown(18000); // 5小时冷却
+    addLog("【系统】任务已刷新，新的任务已经发布！");
+  };
 
   // --- Effects ---
   useEffect(() => {
@@ -1009,6 +1055,22 @@ export default function Cultivation() {
         return prev - 1;
       });
 
+      // Handle Task Refresh Cooldown
+      setTaskRefreshCooldown(prev => {
+        if (prev <= 0) return 0;
+        return prev - 1;
+      });
+
+      // Handle Auto Task Refresh
+      setAutoTaskRefreshTime(prev => {
+        if (prev <= 1) {
+          refreshTasks();
+          addLog("【系统】任务自动刷新，新的任务已经发布！");
+          return 10800; // 3小时
+        }
+        return prev - 1;
+      });
+
       // Handle Task Timers
       setAvailableTasks(prev => {
         let changed = false;
@@ -1033,13 +1095,21 @@ export default function Cultivation() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isPaused, refreshMarket]);
+  }, [isPaused, refreshMarket, refreshTasks]);
 
   // Handle Task Completion and Replacement
   useEffect(() => {
-    availableTasks.forEach((slot, i) => {
+    const tasksToProcess = [...availableTasks];
+    tasksToProcess.forEach((slot, i) => {
       if (slot.status === 'completed_pending') {
-        completeWork(i);
+        // 立即修改状态，防止重复调用
+        setAvailableTasks(prev => {
+          const newTasks = [...prev];
+          newTasks[i] = { ...newTasks[i], status: 'processing' };
+          // 直接在状态更新后执行任务完成逻辑
+          completeWork(i);
+          return newTasks;
+        });
       } else if (slot.status === 'replace_pending') {
         replaceTask(i);
       }
@@ -1452,9 +1522,18 @@ export default function Cultivation() {
 
             {activeTab === 'tasks' && (
               <div className="space-y-4">
-                <div className="text-arcade-yellow text-xs border-b border-white/10 pb-2 flex justify-between">
+                <div className="text-arcade-yellow text-xs border-b border-white/10 pb-2 flex justify-between items-center">
                   <span>悬赏告示栏</span>
-                  <span className="text-[8px] text-white/40">完成任务可获得灵石奖励</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] text-white/40">距离下次自动刷新: {Math.floor(autoTaskRefreshTime / 3600)}时{Math.floor((autoTaskRefreshTime % 3600) / 60)}分{autoTaskRefreshTime % 60}秒</span>
+                    <button 
+                      onClick={handleManualTaskRefresh}
+                      className={`pixel-button !py-1 !px-2 !text-[8px] ${taskRefreshCooldown > 0 ? '!bg-gray-700 !cursor-not-allowed' : '!bg-arcade-green/20 hover:!bg-arcade-green/40'}`}
+                      disabled={taskRefreshCooldown > 0}
+                    >
+                      {taskRefreshCooldown > 0 ? `刷新(${Math.floor(taskRefreshCooldown / 3600)}h${Math.floor((taskRefreshCooldown % 3600) / 60)}m)` : '刷新任务'}
+                    </button>
+                  </div>
                 </div>
                 <div className="grid gap-3">
                   {availableTasks.map((slot, i) => (
@@ -1477,6 +1556,11 @@ export default function Cultivation() {
                             }`}>[{slot.task.difficulty}]</span>
                           </div>
                           <p className="text-[8px] text-white/40">{slot.task.desc}</p>
+                          {slot.possibleItem && (
+                            <div className="text-[8px] text-arcade-green">
+                              额外奖励: {slot.possibleItem.name}
+                            </div>
+                          )}
                         </div>
                         <div className="text-right space-y-2">
                           <div className={`text-[10px] ${
