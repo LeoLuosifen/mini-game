@@ -244,6 +244,131 @@ export const WORLD_RUMORS: Rumor[] = [
         }
       }
     ]
+  },
+  {
+    text: "【传闻】东极海域出现了一座漂浮的仙岛，岛上有仙人遗留的传承。",
+    options: [
+      {
+        text: "前往东极海域寻找仙岛",
+        action: "island",
+        reward: {
+          stonesTop: 15,
+          exp: 600,
+          savvy: 8
+        },
+        risk: {
+          hp: -45,
+          stonesHigh: -150
+        }
+      }
+    ]
+  },
+  {
+    text: "【传闻】西昆仑山脉发现了一处灵脉，灵气浓郁程度前所未有。",
+    options: [
+      {
+        text: "前往西昆仑山脉修炼",
+        action: "spiritvein",
+        reward: {
+          exp: 400,
+          savvy: 3,
+          item: "elixir_large"
+        },
+        risk: {
+          hp: -25,
+          stonesLow: -100
+        }
+      }
+    ]
+  },
+  {
+    text: "【传闻】南蛮之地的古巫族正在举行祭祀大典，据说会有宝物现世。",
+    options: [
+      {
+        text: "混入古巫族祭祀大典",
+        action: "sacrifice",
+        reward: {
+          stonesHigh: 70,
+          item: "atk_stone"
+        },
+        risk: {
+          hp: -60,
+          stonesLow: -300
+        }
+      }
+    ]
+  },
+  {
+    text: "【传闻】北邙山出现了阴兵借道的异象，据说与一件上古神器有关。",
+    options: [
+      {
+        text: "前往北邙山一探究竟",
+        action: "ghost",
+        reward: {
+          stonesTop: 25,
+          exp: 700,
+          item: "def_charm"
+        },
+        risk: {
+          hp: -70,
+          stonesHigh: -250
+        }
+      }
+    ]
+  },
+  {
+    text: "【传闻】中域的太玄宗将举办千年一度的宗门大比，胜者可获得稀世珍宝。",
+    options: [
+      {
+        text: "参加太玄宗宗门大比",
+        action: "competition",
+        reward: {
+          stonesHigh: 100,
+          exp: 500,
+          item: "savvy_scroll"
+        },
+        risk: {
+          hp: -30,
+          stonesLow: -400
+        }
+      }
+    ]
+  },
+  {
+    text: "【传闻】海外仙岛的蓬莱阁将招收新弟子，要求资质过人。",
+    options: [
+      {
+        text: "前往蓬莱阁参加选拔",
+        action: "recruit",
+        reward: {
+          exp: 300,
+          savvy: 5,
+          item: "hp_pill"
+        },
+        risk: {
+          stonesHigh: -100,
+          stonesLow: -200
+        }
+      }
+    ]
+  },
+  {
+    text: "【传闻】不周山巅出现了五色神光，可能是天地灵物现世的征兆。",
+    options: [
+      {
+        text: "前往不周山巅探寻",
+        action: "light",
+        reward: {
+          stonesTop: 30,
+          exp: 900,
+          item: "immortal_pill"
+        },
+        risk: {
+          hp: -90,
+          stonesHigh: -350
+        }
+      }
+    ]
   }
 ];
 

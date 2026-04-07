@@ -997,7 +997,7 @@ export default function Cultivation() {
       if (pool.length === 0) break;
       const item = pool.pop()!;
       // Cost scales with player progress
-      const cost = Math.floor(item.costBase * (1 + player.stageIndex * 0.1));
+      const cost = Math.floor(item.costBase * (1 + player.stageIndex * 0.1) * 3);
       selected.push({ ...item, cost });
     }
     
@@ -1071,14 +1071,18 @@ export default function Cultivation() {
   const checkResources = (option: any) => {
     if (!option.risk) return { canProceed: true, message: "" };
     
-    if (option.risk.stonesLow && player.stonesLow < Math.abs(option.risk.stonesLow)) {
-      return { canProceed: false, message: "下品灵石不足，无法进行此行动！" };
-    } else if (option.risk.stonesHigh && player.stonesHigh < Math.abs(option.risk.stonesHigh)) {
-      return { canProceed: false, message: "高级灵石不足，无法进行此行动！" };
-    } else if (option.risk.stonesTop && player.stonesTop < Math.abs(option.risk.stonesTop)) {
-      return { canProceed: false, message: "极品灵石不足，无法进行此行动！" };
-    } else if (option.risk.hp && player.hp < Math.abs(option.risk.hp)) {
-      return { canProceed: false, message: "气血不足，无法进行此行动！" };
+    if (option.risk.stonesLow && player.stonesLow > 0) {
+      const riskPercent = Math.abs(option.risk.stonesLow);
+      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+    } else if (option.risk.stonesHigh && player.stonesHigh > 0) {
+      const riskPercent = Math.abs(option.risk.stonesHigh);
+      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+    } else if (option.risk.stonesTop && player.stonesTop > 0) {
+      const riskPercent = Math.abs(option.risk.stonesTop);
+      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+    } else if (option.risk.hp && player.hp > 0) {
+      const riskPercent = Math.abs(option.risk.hp);
+      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
     }
     
     return { canProceed: true, message: "" };
@@ -1088,12 +1092,26 @@ export default function Cultivation() {
   const applyRisk = (playerState: any, option: any) => {
     const next = { ...playerState, inventory: { ...playerState.inventory } };
     if (!option.risk) return next;
-    
-    const riskMultiplier = getRandomMultiplier();
-    if (option.risk.stonesLow) next.stonesLow = Math.max(0, next.stonesLow + Math.floor(option.risk.stonesLow * riskMultiplier));
-    if (option.risk.stonesHigh) next.stonesHigh = Math.max(0, next.stonesHigh + Math.floor(option.risk.stonesHigh * riskMultiplier));
-    if (option.risk.stonesTop) next.stonesTop = Math.max(0, next.stonesTop + Math.floor(option.risk.stonesTop * riskMultiplier));
-    if (option.risk.hp) next.hp = next.hp + Math.floor(option.risk.hp * riskMultiplier);
+    if (option.risk.stonesLow && next.stonesLow > 0) {
+      const riskPercent = Math.min(65, Math.abs(option.risk.stonesLow));
+      const riskAmount = Math.floor(next.stonesLow * riskPercent / 100);
+      next.stonesLow = Math.max(0, next.stonesLow - riskAmount);
+    }
+    if (option.risk.stonesHigh && next.stonesHigh > 0) {
+      const riskPercent = Math.min(65, Math.abs(option.risk.stonesHigh));
+      const riskAmount = Math.floor(next.stonesHigh * riskPercent / 100);
+      next.stonesHigh = Math.max(0, next.stonesHigh - riskAmount);
+    }
+    if (option.risk.stonesTop && next.stonesTop > 0) {
+      const riskPercent = Math.min(65, Math.abs(option.risk.stonesTop));
+      const riskAmount = Math.floor(next.stonesTop * riskPercent / 100);
+      next.stonesTop = Math.max(0, next.stonesTop - riskAmount);
+    }
+    if (option.risk.hp && next.hp > 0) {
+      const riskPercent = Math.min(65, Math.abs(option.risk.hp));
+      const riskAmount = Math.floor(next.hp * riskPercent / 100);
+      next.hp = Math.max(1, next.hp - riskAmount);
+    }
     
     return next;
   };
@@ -1124,11 +1142,10 @@ export default function Cultivation() {
     let resultMessage = `你选择了${option.text}，`;
     
     if (option.risk) {
-      const riskMultiplier = getRandomMultiplier();
-      if (option.risk.stonesLow) resultMessage += `消耗了${Math.abs(Math.floor(option.risk.stonesLow * riskMultiplier))}下品灵石，`;
-      if (option.risk.stonesHigh) resultMessage += `消耗了${Math.abs(Math.floor(option.risk.stonesHigh * riskMultiplier))}高级灵石，`;
-      if (option.risk.stonesTop) resultMessage += `消耗了${Math.abs(Math.floor(option.risk.stonesTop * riskMultiplier))}极品灵石，`;
-      if (option.risk.hp) resultMessage += `受到了${Math.abs(Math.floor(option.risk.hp * riskMultiplier))}点伤害，`;
+      if (option.risk.stonesLow) resultMessage += `消耗了${Math.min(65, Math.abs(option.risk.stonesLow))}%的下品灵石，`;
+      if (option.risk.stonesHigh) resultMessage += `消耗了${Math.min(65, Math.abs(option.risk.stonesHigh))}%的高级灵石，`;
+      if (option.risk.stonesTop) resultMessage += `消耗了${Math.min(65, Math.abs(option.risk.stonesTop))}%的极品灵石，`;
+      if (option.risk.hp) resultMessage += `受到了${Math.min(65, Math.abs(option.risk.hp))}%的气血伤害，`;
     }
     
     if (success && option.reward) {
