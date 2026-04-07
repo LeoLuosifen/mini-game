@@ -102,10 +102,26 @@ export default function Cultivation() {
   const [taskRefreshCooldown, setTaskRefreshCooldown] = useState(0); // 手动刷新冷却时间（秒）
   const [autoTaskRefreshTime, setAutoTaskRefreshTime] = useState(10800); // 自动刷新时间（3小时，秒）
   const [currentRumor, setCurrentRumor] = useState<any>(null); // 当前传闻
+
   const [showRumorModal, setShowRumorModal] = useState(false); // 是否显示传闻模态框
 
   // --- Refs for game loop ---
   const lastSaveRef = useRef(Date.now());
+
+  // --- Helper Functions ---  
+  // 根据等级获取境界名称
+  const getStageName = (stageIndex: number) => {
+    if (stageIndex < 10) return '练气期';
+    if (stageIndex < 20) return '筑基期';
+    if (stageIndex < 30) return '金丹期';
+    if (stageIndex < 40) return '元婴期';
+    if (stageIndex < 50) return '化神期';
+    if (stageIndex < 60) return '炼虚期';
+    if (stageIndex < 70) return '合体期';
+    if (stageIndex < 80) return '大乘期';
+    if (stageIndex < 90) return '渡劫期';
+    return '真仙期';
+  };
 
   // --- Formulas ---
   const getExpRequirement = (index: number) => {
@@ -169,17 +185,14 @@ export default function Cultivation() {
 
     // Scaling factor based on progress towards Great Emperor
     const progress = player.stageIndex / 91;
-    
-    // Random jitter between -0.08 and +0.08 to make it non-fixed
-    const jitter = (Math.random() * 0.16) - 0.08;
 
     if (difficulty === '普通') {
-      // Min 30%, scales up to 100% at Great Emperor, with jitter
-      return Math.min(1.0, Math.max(0.3, 0.3 + (progress * 0.7) + jitter));
+      // Min 30%, scales up to 100% at Great Emperor
+      return Math.min(1.0, Math.max(0.3, 0.3 + (progress * 0.7)));
     }
     if (difficulty === '困难') {
-      // Min 20%, scales up to 100% at Great Emperor, with jitter
-      return Math.min(1.0, Math.max(0.2, 0.2 + (progress * 0.8) + jitter));
+      // Min 20%, scales up to 100% at Great Emperor
+      return Math.min(1.0, Math.max(0.2, 0.2 + (progress * 0.8)));
     }
     return 1.0;
   }, [player.stageIndex]);
@@ -1081,6 +1094,8 @@ export default function Cultivation() {
     setAvailableTasks(selected);
   }, [getTaskSuccessChance]);
 
+
+
   const handleManualTaskRefresh = () => {
     if (taskRefreshCooldown > 0) {
       addLog("任务刷新冷却中，请稍后再试！");
@@ -1099,20 +1114,22 @@ export default function Cultivation() {
   const checkResources = (option: any) => {
     if (!option.risk) return { canProceed: true, message: "" };
     
+    // 根据玩家境界调整最大风险值
+    const maxRisk = Math.min(90, 65 + Math.floor(player.stageIndex / 10) * 5);
+    
     if (option.risk.stonesLow && player.stonesLow > 0) {
       const riskPercent = Math.abs(option.risk.stonesLow);
-      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+      if (riskPercent > maxRisk) return { canProceed: false, message: "风险过高，无法进行此行动！" };
     } else if (option.risk.stonesHigh && player.stonesHigh > 0) {
       const riskPercent = Math.abs(option.risk.stonesHigh);
-      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+      if (riskPercent > maxRisk) return { canProceed: false, message: "风险过高，无法进行此行动！" };
     } else if (option.risk.stonesTop && player.stonesTop > 0) {
       const riskPercent = Math.abs(option.risk.stonesTop);
-      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+      if (riskPercent > maxRisk) return { canProceed: false, message: "风险过高，无法进行此行动！" };
     } else if (option.risk.hp && player.hp > 0) {
       const riskPercent = Math.abs(option.risk.hp);
-      if (riskPercent > 65) return { canProceed: false, message: "风险过高，无法进行此行动！" };
+      if (riskPercent > maxRisk) return { canProceed: false, message: "风险过高，无法进行此行动！" };
     }
-    
     return { canProceed: true, message: "" };
   };
 
@@ -1199,29 +1216,22 @@ export default function Cultivation() {
     if (option.action === 'ignore') {
       addLog("你选择无视传闻，继续专注于修炼。");
     } else {
-      // 检查资源是否足够
-      const { canProceed, message } = checkResources(option);
+      // 计算成功率 (70%成功率)
+      const success = Math.random() < 0.7;
       
-      if (!canProceed) {
-        addLog(message);
-      } else {
-        // 计算成功率 (70%成功率)
-        const success = Math.random() < 0.7;
-        
-        // 应用风险和奖励
-        setPlayer(prev => {
-          let next = applyRisk(prev, option);
-          if (success) {
-            next = applyReward(next, option);
-          }
-          saveGame(next);
-          return next;
-        });
-        
-        // 生成结果消息
-        const resultMessage = generateResultMessage(option, success);
-        addLog(resultMessage);
-      }
+      // 应用风险和奖励
+      setPlayer(prev => {
+        let next = applyRisk(prev, option);
+        if (success) {
+          next = applyReward(next, option);
+        }
+        saveGame(next);
+        return next;
+      });
+      
+      // 生成结果消息
+      const resultMessage = generateResultMessage(option, success);
+      addLog(resultMessage);
     }
     
     setShowRumorModal(false);
@@ -1307,6 +1317,8 @@ export default function Cultivation() {
         });
         return changed ? next : prev;
       });
+
+
     }, 1000);
     return () => clearInterval(interval);
   }, [isPaused, refreshMarket, refreshTasks]);
@@ -1329,6 +1341,8 @@ export default function Cultivation() {
       }
     });
   }, [availableTasks, completeWork, replaceTask]);
+
+
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1846,6 +1860,8 @@ export default function Cultivation() {
                   ))}
                 </div>
                 <p className="text-[8px] text-white/20 italic text-center">任务完成后该栏位会进入冷却并刷新...</p>
+                
+
               </div>
             )}
 

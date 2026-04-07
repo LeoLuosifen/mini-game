@@ -439,7 +439,78 @@ export const WORK_TASKS = [
   { name: "镇压魔窟", difficulty: "困难", rewardBase: 1000, desc: "九死一生的任务，但奖励极其丰厚。" },
   { name: "猎杀悬赏", difficulty: "困难", rewardBase: 800, desc: "目标是为祸一方的凶兽，需要极强的战斗力。" },
   { name: "探索秘境", difficulty: "困难", rewardBase: 900, desc: "进入危险的秘境寻找宝藏。" },
-  { name: "挑战擂台", difficulty: "困难", rewardBase: 700, desc: "在宗门擂台上挑战其他弟子。" }
+  { name: "挑战擂台", difficulty: "困难", rewardBase: 700, desc: "在宗门擂台上挑战其他弟子。" },
+  // 新增任务
+  { name: "清理藏经阁", difficulty: "简单", rewardBase: 45, desc: "清理藏经阁的灰尘，整理散乱的书籍。" },
+  { name: "喂养灵兽", difficulty: "简单", rewardBase: 30, desc: "喂养宗门中的灵兽，需要小心它们的脾气。" },
+  { name: "传递消息", difficulty: "简单", rewardBase: 40, desc: "为宗门传递重要消息，需要快速准确。" },
+  { name: "制作符箓", difficulty: "普通", rewardBase: 190, desc: "根据图纸制作各种符箓，需要一定的灵力控制能力。" },
+  { name: "炼制丹药", difficulty: "普通", rewardBase: 220, desc: "在炼丹房协助炼制丹药，有机会获得成品丹药。" },
+  { name: "巡逻边界", difficulty: "普通", rewardBase: 170, desc: "在宗门边界巡逻，防止外敌入侵。" },
+  { name: "教导新弟子", difficulty: "普通", rewardBase: 210, desc: "教导新入门的弟子基本修炼方法，提升自己的感悟。" },
+  { name: "寻找失踪修士", difficulty: "困难", rewardBase: 850, desc: "寻找在历练中失踪的修士，可能会遇到危险。" },
+  { name: "夺回被盗宝物", difficulty: "困难", rewardBase: 950, desc: "夺回被贼人偷走的宗门宝物，需要追踪和战斗能力。" },
+  { name: "抵御兽潮", difficulty: "困难", rewardBase: 1100, desc: "抵御妖兽潮的入侵，保护宗门安全。" }
+];
+
+// 限时任务
+export const LIMITED_TASKS = [
+  { 
+    name: "千年灵草采集", 
+    difficulty: "困难", 
+    rewardBase: 1500, 
+    desc: "千年一现的灵草即将成熟，需要在限定时间内采集。",
+    duration: 3600, // 1小时
+    cooldown: 86400, // 24小时
+    requirement: { stageIndex: 30 }, // 金丹期以上
+    rewards: {
+      low: { currency: 'low', items: ['elixir_mid'] }, // 20以下：下品灵石 + 大还丹
+      mid: { currency: 'high', items: ['savvy_book'] }, // 21-49：高级灵石 + 天书残卷
+      high: { currency: 'top', items: ['elixir_large'] } // 50以上：极品灵石 + 九转金丹
+    }
+  },
+  { 
+    name: "秘境探索", 
+    difficulty: "困难", 
+    rewardBase: 2000, 
+    desc: "限时开放的秘境，里面有大量宝物和机缘。",
+    duration: 7200, // 2小时
+    cooldown: 172800, // 48小时
+    requirement: { stageIndex: 40 }, // 元婴期以上
+    rewards: {
+      low: { currency: 'low', items: ['hp_pill'] }, // 20以下：下品灵石 + 补血丹
+      mid: { currency: 'high', items: ['hp_essence'] }, // 21-49：高级灵石 + 龙血精元
+      high: { currency: 'top', items: ['immortal_pill'] } // 50以上：极品灵石 + 飞升丹
+    }
+  },
+  { 
+    name: "宗门大比", 
+    difficulty: "困难", 
+    rewardBase: 2500, 
+    desc: "宗门内部的比武大会，胜出者将获得丰厚奖励。",
+    duration: 10800, // 3小时
+    cooldown: 604800, // 7天
+    requirement: { stageIndex: 20 }, // 筑基期以上
+    rewards: {
+      low: { currency: 'low', items: ['atk_stone'] }, // 20以下：下品灵石 + 磨刀石
+      mid: { currency: 'high', items: ['atk_gem'] }, // 21-49：高级灵石 + 庚金之精
+      high: { currency: 'top', items: ['def_shield'] } // 50以上：极品灵石 + 玄武甲片
+    }
+  },
+  { 
+    name: "除魔卫道", 
+    difficulty: "困难", 
+    rewardBase: 1800, 
+    desc: "附近出现了魔道修士，需要尽快铲除。",
+    duration: 5400, // 1.5小时
+    cooldown: 43200, // 12小时
+    requirement: { stageIndex: 25 }, // 筑基后期以上
+    rewards: {
+      low: { currency: 'low', items: ['def_charm'] }, // 20以下：下品灵石 + 护身符
+      mid: { currency: 'high', items: ['array_guide'] }, // 21-49：高级灵石 + 阵法心得
+      high: { currency: 'top', items: ['tribulation_pill'] } // 50以上：极品灵石 + 渡劫丹
+    }
+  }
 ];
 
 export const OLD_MAN_QUOTES = [
