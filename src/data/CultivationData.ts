@@ -27,7 +27,7 @@ export const CULTIVATION_PARTS = {
 
 export interface Rumor {
   text: string;
-  options?: {
+  options: {
     text: string;
     action: string;
     reward?: {
@@ -62,10 +62,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           hp: -30
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -81,10 +77,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           stonesHigh: -1000
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -103,10 +95,6 @@ export const WORLD_RUMORS: Rumor[] = [
           hp: -50,
           stonesHigh: -200
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -124,10 +112,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           hp: -20
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -143,10 +127,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           stonesHigh: -5
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -163,10 +143,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           stonesLow: -100
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -185,10 +161,6 @@ export const WORLD_RUMORS: Rumor[] = [
           hp: -80,
           stonesHigh: -300
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -207,10 +179,6 @@ export const WORLD_RUMORS: Rumor[] = [
           hp: -40,
           stonesLow: -200
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -228,10 +196,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           hp: -35
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -247,10 +211,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           stonesTop: -5
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -266,10 +226,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           stonesLow: -300
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   },
@@ -286,10 +242,6 @@ export const WORLD_RUMORS: Rumor[] = [
         risk: {
           stonesLow: -500
         }
-      },
-      {
-        text: "无视传闻，继续修炼",
-        action: "ignore"
       }
     ]
   }

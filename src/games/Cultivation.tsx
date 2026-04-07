@@ -62,8 +62,8 @@ export default function Cultivation() {
 
   const getRealmName = (index: number) => {
     if (index === 0) return "凡人";
-    const majorIdx = Math.floor(index / 10) + 1;
-    const minorIdx = index % 10 + 1;
+    const majorIdx = Math.floor((index - 1) / 10) + 1;
+    const minorIdx = (index - 1) % 10 + 1;
     const majorName = REALMS[majorIdx] || "未知";
     if (minorIdx === 10) return `${majorName}巅峰`;
     const chineseNums = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
@@ -186,8 +186,40 @@ export default function Cultivation() {
   const getBreakthroughChance = () => {
     if (player.stageIndex === 0) return 1; // 凡人必过
     const isMajor = player.stageIndex % 10 === 0;
-    if (isMajor) return Math.max(0.1, 0.8 - (player.stageIndex / 100)); // 大境界突破较难
-    return 0.95; // 小境界突破较易
+    const currentMajorRealm = Math.floor(player.stageIndex / 10);
+    
+    if (isMajor) {
+      // 大境界突破成功率
+      const nextMajorRealm = Math.floor((player.stageIndex + 1) / 10);
+      
+      // 炼气到筑基到金丹这三个大境界的突破成功率在95-100%
+      if (nextMajorRealm <= 3) { // 1: 凡人->炼气, 2: 炼气->筑基, 3: 筑基->金丹
+        return 0.95 + Math.random() * 0.05; // 95%-100%
+      }
+      // 从金丹突破到元婴开始，成功率降低
+      else if (nextMajorRealm === 4) { // 4: 金丹->元婴
+        return 0.75 + Math.random() * 0.05; // 75%-80%
+      }
+      // 往后以此类推，成功率逐渐降低
+      else {
+        // 基础成功率从75%开始，每提高一个大境界降低5%
+        const baseChance = Math.max(0.3, 0.75 - (nextMajorRealm - 4) * 0.05);
+        return baseChance + Math.random() * 0.05;
+      }
+    }
+    
+    // 小境界突破成功率
+    if (currentMajorRealm <= 2) { // 炼气、筑基期小境界
+      return 0.95; // 95%
+    } else if (currentMajorRealm === 3) { // 金丹期小境界
+      return 0.90 + Math.random() * 0.05; // 90%-95%
+    } else if (currentMajorRealm === 4) { // 元婴期小境界
+      return 0.85 + Math.random() * 0.05; // 85%-90%
+    } else {
+      // 往后小境界成功率逐渐降低
+      const baseChance = Math.max(0.6, 0.85 - (currentMajorRealm - 4) * 0.05);
+      return baseChance + Math.random() * 0.05;
+    }
   };
 
   const getBreakthroughInfo = () => {
@@ -199,9 +231,6 @@ export default function Cultivation() {
     let message = "突破境界";
     
     if (needTribulation) {
-      const tribulationLevel = Math.floor((nextStageIndex - 1) / 10) - 2;
-      const baseTribulationChance = Math.max(0.1, 0.8 - (tribulationLevel * 0.15));
-      
       let tribulationBonus = 0;
       if (player.inventory['tribulation_pill']) {
         tribulationBonus += 0.2;
@@ -212,7 +241,7 @@ export default function Cultivation() {
       const savvyBonus = (player.savvy - 10) * 0.01;
       tribulationBonus += Math.max(0, Math.min(0.3, savvyBonus));
       
-      chance = Math.min(0.95, baseTribulationChance + tribulationBonus);
+      chance = Math.min(1.0, chance + tribulationBonus);
       message = "渡劫突破";
     }
     
@@ -368,10 +397,6 @@ export default function Cultivation() {
     let chance = getBreakthroughChance();
 
     if (needTribulation) {
-      // 计算渡劫难度和成功率
-      const tribulationLevel = Math.floor((nextStageIndex - 1) / 10) - 2; // 从金丹开始计算
-      const baseTribulationChance = Math.max(0.1, 0.8 - (tribulationLevel * 0.15));
-      
       // 辅助渡劫的因素
       let tribulationBonus = 0;
       
@@ -387,13 +412,11 @@ export default function Cultivation() {
       const savvyBonus = (player.savvy - 10) * 0.01;
       tribulationBonus += Math.max(0, Math.min(0.3, savvyBonus));
       
-      // 最终渡劫成功率
-      chance = Math.min(0.95, baseTribulationChance + tribulationBonus);
+      // 最终渡劫成功率（在基础成功率上增加丹药和悟性加成）
+      chance = Math.min(1.0, chance + tribulationBonus);
       
       addLog(`你感受到天地法则的威压，即将迎来${nextMajorRealm}劫！`);
       addLog(`渡劫成功率: ${Math.floor(chance * 100)}%`);
-    } else {
-      chance = getBreakthroughChance();
     }
 
     if (Math.random() < chance) {
@@ -1028,83 +1051,117 @@ export default function Cultivation() {
     addLog("【系统】任务已刷新，新的任务已经发布！");
   };
 
+  // 生成随机乘数 (80%-120%)
+  const getRandomMultiplier = () => 0.8 + Math.random() * 0.4;
+
+  // 检查资源是否足够
+  const checkResources = (option: any) => {
+    if (!option.risk) return { canProceed: true, message: "" };
+    
+    if (option.risk.stonesLow && player.stonesLow < Math.abs(option.risk.stonesLow)) {
+      return { canProceed: false, message: "下品灵石不足，无法进行此行动！" };
+    } else if (option.risk.stonesHigh && player.stonesHigh < Math.abs(option.risk.stonesHigh)) {
+      return { canProceed: false, message: "高级灵石不足，无法进行此行动！" };
+    } else if (option.risk.stonesTop && player.stonesTop < Math.abs(option.risk.stonesTop)) {
+      return { canProceed: false, message: "极品灵石不足，无法进行此行动！" };
+    } else if (option.risk.hp && player.hp < Math.abs(option.risk.hp)) {
+      return { canProceed: false, message: "气血不足，无法进行此行动！" };
+    }
+    
+    return { canProceed: true, message: "" };
+  };
+
+  // 应用风险
+  const applyRisk = (playerState: any, option: any) => {
+    const next = { ...playerState, inventory: { ...playerState.inventory } };
+    if (!option.risk) return next;
+    
+    const riskMultiplier = getRandomMultiplier();
+    if (option.risk.stonesLow) next.stonesLow = Math.max(0, next.stonesLow + Math.floor(option.risk.stonesLow * riskMultiplier));
+    if (option.risk.stonesHigh) next.stonesHigh = Math.max(0, next.stonesHigh + Math.floor(option.risk.stonesHigh * riskMultiplier));
+    if (option.risk.stonesTop) next.stonesTop = Math.max(0, next.stonesTop + Math.floor(option.risk.stonesTop * riskMultiplier));
+    if (option.risk.hp) next.hp = Math.max(1, next.hp + Math.floor(option.risk.hp * riskMultiplier));
+    
+    return next;
+  };
+
+  // 应用奖励
+  const applyReward = (playerState: any, option: any) => {
+    const next = { ...playerState, inventory: { ...playerState.inventory } };
+    if (!option.reward) return next;
+    
+    const rewardMultiplier = getRandomMultiplier();
+    if (option.reward.stonesLow) next.stonesLow += Math.floor(option.reward.stonesLow * rewardMultiplier);
+    if (option.reward.stonesHigh) next.stonesHigh += Math.floor(option.reward.stonesHigh * rewardMultiplier);
+    if (option.reward.stonesTop) next.stonesTop += Math.floor(option.reward.stonesTop * rewardMultiplier);
+    if (option.reward.exp) {
+      const req = getExpRequirement(next.stageIndex);
+      next.exp = Math.min(req, next.exp + Math.floor(option.reward.exp * rewardMultiplier));
+    }
+    if (option.reward.savvy) next.savvy += Math.floor(option.reward.savvy * rewardMultiplier);
+    if (option.reward.item && Math.random() < 0.9) {
+      next.inventory[option.reward.item] = (next.inventory[option.reward.item] || 0) + 1;
+    }
+    
+    return next;
+  };
+
+  // 生成结果消息
+  const generateResultMessage = (option: any, success: boolean) => {
+    let resultMessage = `你选择了${option.text}，`;
+    
+    if (option.risk) {
+      const riskMultiplier = getRandomMultiplier();
+      if (option.risk.stonesLow) resultMessage += `消耗了${Math.abs(Math.floor(option.risk.stonesLow * riskMultiplier))}下品灵石，`;
+      if (option.risk.stonesHigh) resultMessage += `消耗了${Math.abs(Math.floor(option.risk.stonesHigh * riskMultiplier))}高级灵石，`;
+      if (option.risk.stonesTop) resultMessage += `消耗了${Math.abs(Math.floor(option.risk.stonesTop * riskMultiplier))}极品灵石，`;
+      if (option.risk.hp) resultMessage += `受到了${Math.abs(Math.floor(option.risk.hp * riskMultiplier))}点伤害，`;
+    }
+    
+    if (success && option.reward) {
+      const rewardMultiplier = getRandomMultiplier();
+      if (option.reward.stonesLow) resultMessage += `获得了${Math.floor(option.reward.stonesLow * rewardMultiplier)}下品灵石，`;
+      if (option.reward.stonesHigh) resultMessage += `获得了${Math.floor(option.reward.stonesHigh * rewardMultiplier)}高级灵石，`;
+      if (option.reward.stonesTop) resultMessage += `获得了${Math.floor(option.reward.stonesTop * rewardMultiplier)}极品灵石，`;
+      if (option.reward.exp) resultMessage += `获得了${Math.floor(option.reward.exp * rewardMultiplier)}点修为，`;
+      if (option.reward.savvy) resultMessage += `悟性提升了${Math.floor(option.reward.savvy * rewardMultiplier)}点，`;
+      if (option.reward.item && Math.random() < 0.9) {
+        const item = MARKET_POOL.find(i => i.id === option.reward.item);
+        if (item) resultMessage += `获得了${item.name}，`;
+      }
+      resultMessage = resultMessage.slice(0, -1) + "。";
+    } else if (!success) {
+      resultMessage += "但行动失败，没有获得任何奖励。";
+    }
+    
+    return resultMessage;
+  };
+
   const handleRumorOption = (option: any) => {
     if (option.action === 'ignore') {
       addLog("你选择无视传闻，继续专注于修炼。");
     } else {
-      // 检查风险条件
-      let canProceed = true;
-      let riskMessage = "";
-      
-      if (option.risk) {
-        if (option.risk.stonesLow && player.stonesLow < Math.abs(option.risk.stonesLow)) {
-          canProceed = false;
-          riskMessage = "下品灵石不足，无法进行此行动！";
-        } else if (option.risk.stonesHigh && player.stonesHigh < Math.abs(option.risk.stonesHigh)) {
-          canProceed = false;
-          riskMessage = "高级灵石不足，无法进行此行动！";
-        } else if (option.risk.stonesTop && player.stonesTop < Math.abs(option.risk.stonesTop)) {
-          canProceed = false;
-          riskMessage = "极品灵石不足，无法进行此行动！";
-        } else if (option.risk.hp && player.hp < Math.abs(option.risk.hp)) {
-          canProceed = false;
-          riskMessage = "气血不足，无法进行此行动！";
-        }
-      }
+      // 检查资源是否足够
+      const { canProceed, message } = checkResources(option);
       
       if (!canProceed) {
-        addLog(riskMessage);
+        addLog(message);
       } else {
-        // 应用风险
+        // 计算成功率 (70%成功率)
+        const success = Math.random() < 0.7;
+        
+        // 应用风险和奖励
         setPlayer(prev => {
-          const next = { ...prev, inventory: { ...prev.inventory } };
-          
-          if (option.risk) {
-            if (option.risk.stonesLow) next.stonesLow = Math.max(0, next.stonesLow + option.risk.stonesLow);
-            if (option.risk.stonesHigh) next.stonesHigh = Math.max(0, next.stonesHigh + option.risk.stonesHigh);
-            if (option.risk.stonesTop) next.stonesTop = Math.max(0, next.stonesTop + option.risk.stonesTop);
-            if (option.risk.hp) next.hp = Math.max(1, next.hp + option.risk.hp);
+          let next = applyRisk(prev, option);
+          if (success) {
+            next = applyReward(next, option);
           }
-          
-          // 应用奖励
-          if (option.reward) {
-            if (option.reward.stonesLow) next.stonesLow += option.reward.stonesLow;
-            if (option.reward.stonesHigh) next.stonesHigh += option.reward.stonesHigh;
-            if (option.reward.stonesTop) next.stonesTop += option.reward.stonesTop;
-            if (option.reward.exp) {
-              const req = getExpRequirement(next.stageIndex);
-              next.exp = Math.min(req, next.exp + option.reward.exp);
-            }
-            if (option.reward.savvy) next.savvy += option.reward.savvy;
-            if (option.reward.item) {
-              next.inventory[option.reward.item] = (next.inventory[option.reward.item] || 0) + 1;
-            }
-          }
-          
           saveGame(next);
           return next;
         });
         
         // 生成结果消息
-        let resultMessage = `你选择了${option.text}，`;
-        if (option.risk) {
-          if (option.risk.stonesLow) resultMessage += `消耗了${Math.abs(option.risk.stonesLow)}下品灵石，`;
-          if (option.risk.stonesHigh) resultMessage += `消耗了${Math.abs(option.risk.stonesHigh)}高级灵石，`;
-          if (option.risk.stonesTop) resultMessage += `消耗了${Math.abs(option.risk.stonesTop)}极品灵石，`;
-          if (option.risk.hp) resultMessage += `受到了${Math.abs(option.risk.hp)}点伤害，`;
-        }
-        if (option.reward) {
-          if (option.reward.stonesLow) resultMessage += `获得了${option.reward.stonesLow}下品灵石，`;
-          if (option.reward.stonesHigh) resultMessage += `获得了${option.reward.stonesHigh}高级灵石，`;
-          if (option.reward.stonesTop) resultMessage += `获得了${option.reward.stonesTop}极品灵石，`;
-          if (option.reward.exp) resultMessage += `获得了${option.reward.exp}点修为，`;
-          if (option.reward.savvy) resultMessage += `悟性提升了${option.reward.savvy}点，`;
-          if (option.reward.item) {
-            const item = MARKET_POOL.find(i => i.id === option.reward.item);
-            if (item) resultMessage += `获得了${item.name}，`;
-          }
-        }
-        resultMessage = resultMessage.slice(0, -1) + "。";
+        const resultMessage = generateResultMessage(option, success);
         addLog(resultMessage);
       }
     }
@@ -1298,7 +1355,18 @@ export default function Cultivation() {
     const interval = setInterval(() => {
       if (isPaused) return;
       const rumor = WORLD_RUMORS[Math.floor(Math.random() * WORLD_RUMORS.length)];
-      setCurrentRumor(rumor);
+      // 自动添加"无视传闻"选项
+      const rumorWithIgnore = {
+        ...rumor,
+        options: [
+          ...rumor.options,
+          {
+            text: "无视传闻，继续修炼",
+            action: "ignore"
+          }
+        ]
+      };
+      setCurrentRumor(rumorWithIgnore);
       setShowRumorModal(true);
     }, 180000); // 改为3分钟
     return () => clearInterval(interval);
@@ -1830,10 +1898,15 @@ export default function Cultivation() {
       <div className="w-full p-4 bg-black/40 border-2 border-arcade-blue/30 rounded-lg">
         <h3 className="font-pixel text-[10px] text-arcade-blue mb-2">修仙指南</h3>
         <ul className="text-[10px] text-gray-400 font-pixel list-disc list-inside space-y-1">
-          <li>点击“闭关修炼”手动获得修为，修为满后可尝试“突破”。</li>
-          <li>“外出冒险”可以获得灵石，但也可能遭遇危险损失资源。</li>
-          <li>在“洞府”升级聚灵阵可获得挂机修为，在“坊市”购买丹药可提升修炼效率。</li>
-          <li>游戏会自动保存到本地，你可以随时回来继续你的长生之路。</li>
+          <li>点击“闭关修炼”手动获得修为，修为满后可尝试“突破”境界。</li>
+          <li>“外出冒险”可获得灵石与机缘，但也可能遭遇危险。</li>
+          <li>在“洞府”升级聚灵阵可获得挂机修为，提升修炼效率。</li>
+          <li>在“坊市”购买丹药与道具，助力修行之路。</li>
+          <li>完成“任务”可获得丰厚回报，积累修仙资源。</li>
+          <li>留意“传闻”，可能带来意想不到的机遇与挑战。</li>
+          <li>突破大境界时需经历“天劫”，需做好准备。</li>
+          <li>灵根与宗门选择会影响你的修行之路，请谨慎抉择。</li>
+          <li>游戏会自动保存到本地，可随时回来继续你的长生之路。</li>
         </ul>
       </div>
 
