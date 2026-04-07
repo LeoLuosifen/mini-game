@@ -13,7 +13,8 @@ import {
   SPIRIT_ROOTS, 
   SECTS,
   PlayerData,
-  STORAGE_KEY
+  STORAGE_KEY,
+  TITLES
 } from '../data/CultivationData';
 
 export default function Cultivation() {
@@ -67,6 +68,17 @@ export default function Cultivation() {
     if (minorIdx === 10) return `${majorName}巅峰`;
     const chineseNums = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
     return `${majorName}${chineseNums[minorIdx - 1]}层`;
+  };
+
+  const getTitle = (stageIndex: number) => {
+    // 从高到低查找适合的名号
+    const sortedLevels = Object.keys(TITLES).map(Number).sort((a, b) => b - a);
+    for (const level of sortedLevels) {
+      if (stageIndex >= level) {
+        return TITLES[level];
+      }
+    }
+    return TITLES[0]; // 默认返回初入仙途
   };
 
   const [logs, setLogs] = useState<string[]>(["欢迎来到修仙世界，开始你的长生之路吧。"]);
@@ -1244,9 +1256,9 @@ export default function Cultivation() {
               修
             </div>
             <div>
-              <div className="text-arcade-yellow text-sm">{player.name}</div>
-              <div className="text-white/60 text-[10px]">名号：初入仙途</div>
-            </div>
+                <div className="text-arcade-yellow text-sm">{player.name}</div>
+                <div className="text-white/60 text-[10px]">名号：{getTitle(player.stageIndex)}</div>
+              </div>
           </div>
 
           <div className="space-y-3">
@@ -1567,7 +1579,7 @@ export default function Cultivation() {
                             slot.stoneType === 'low' ? 'text-arcade-yellow' : 
                             slot.stoneType === 'high' ? 'text-arcade-blue' : 'text-arcade-pink'
                           }`}>
-                            {slot.stoneType === 'low' ? '下品' : slot.stoneType === 'high' ? '高级' : '极品'}灵石 x{Math.floor(slot.task.rewardBase * (Math.floor(player.stageIndex / 10) + 1))}
+                            {slot.stoneType === 'low' ? '下品' : slot.stoneType === 'high' ? '高级' : '极品'}灵石 x{Math.floor(slot.task.rewardBase * (Math.floor(player.stageIndex / 10) + 1) * 0.8)}-{Math.floor(slot.task.rewardBase * (Math.floor(player.stageIndex / 10) + 1) * 1.2)}
                           </div>
                           <div className="text-[8px] text-white/30">
                             成功率: {Math.floor((slot.successChance ?? getTaskSuccessChance(slot.task.difficulty)) * 100)}%
