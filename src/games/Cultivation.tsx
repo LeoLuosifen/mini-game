@@ -579,7 +579,8 @@ export default function Cultivation() {
         { id: 'bingsui', name: "冰髓", desc: "极寒之地的冰髓，可提升灵根品质", effect: { root: 'purify' } },
         { id: 'fenghuang_xue', name: "凤凰血", desc: "凤凰的精血，可强化灵根", effect: { root: 'purify' } },
         { id: 'lingmai_shui', name: "灵脉水", desc: "灵脉中流出的灵水，可提升修为", effect: { exp: 3000 } },
-        { id: 'shenmu_ye', name: "神木液", desc: "千年神木的树液，可提升悟性", effect: { savvy: 10 } }
+        { id: 'shenmu_ye', name: "神木液", desc: "千年神木的树液，可提升悟性", effect: { savvy: 10 } },
+        { id: 'linggen_pill', name: "洗灵丹", desc: "洗练灵根，提升灵根品质", effect: { rootUpgrade: true } }
       );
       
       // 功法（只能获取一次）
@@ -770,6 +771,22 @@ export default function Cultivation() {
         if (item.effect.root === 'purify') {
           addLog("你服用了洗灵草，灵根得到提纯，品质有所提升！");
           // 这里可以添加灵根品质提升的逻辑
+        }
+      }
+      
+      // 处理灵根升级
+      if ('rootUpgrade' in item.effect && item.effect.rootUpgrade) {
+        // 灵根升级逻辑
+        const currentRoot = SPIRIT_ROOTS.find(r => r.id === next.spiritRootId);
+        if (currentRoot) {
+          const rootIndex = SPIRIT_ROOTS.findIndex(r => r.id === currentRoot.id);
+          if (rootIndex < SPIRIT_ROOTS.length - 1) {
+            const nextRoot = SPIRIT_ROOTS[rootIndex + 1];
+            next.spiritRootId = nextRoot.id;
+            addLog(`你服用了洗灵丹，灵根品质从[${currentRoot.name}]提升到了[${nextRoot.name}]！`);
+          } else {
+            addLog("你的灵根已经是最高品质，无需再升级！");
+          }
         }
       }
       
@@ -997,7 +1014,18 @@ export default function Cultivation() {
       if (pool.length === 0) break;
       const item = pool.pop()!;
       // Cost scales with player progress
-      const cost = Math.floor(item.costBase * (1 + player.stageIndex * 0.1) * 3);
+      let cost = Math.floor(item.costBase * (1 + player.stageIndex * 0.1) * 3);
+      
+      // 洗灵丹价格根据当前灵根品质翻倍
+      if (item.id === 'linggen_pill' && player.spiritRootId) {
+        const currentRoot = SPIRIT_ROOTS.find(r => r.id === player.spiritRootId);
+        if (currentRoot) {
+          const rootIndex = SPIRIT_ROOTS.findIndex(r => r.id === currentRoot.id);
+          // 每提升一次灵根，价格翻倍
+          cost *= Math.pow(2, rootIndex);
+        }
+      }
+      
       selected.push({ ...item, cost });
     }
     
