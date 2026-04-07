@@ -480,7 +480,7 @@ export default function Cultivation() {
         const next = { ...prev, exp: Math.floor(prev.exp * 0.5) };
         // 渡劫失败惩罚更严重
         if (needTribulation) {
-          next.hp = Math.max(1, Math.floor(prev.hp * 0.3));
+          next.hp = Math.floor(prev.hp * 0.3);
         }
         saveGame(next);
         return next;
@@ -558,12 +558,12 @@ export default function Cultivation() {
         expGain = monsterLevel * 15;
         logMsg = `你祭出法宝与 [${monsterName}] (等级 ${monsterLevel}) 激战，经过 ${roundsToKill} 个回合将其击杀，获得${stoneType === 'low' ? '下品' : stoneType === 'high' ? '高级' : '极品'}灵石 x${stoneGain}，修为 x${expGain}。`;
         
-        setPlayer(prev => ({ ...prev, hp: Math.max(1, prev.hp - totalDamageTaken) }));
+        setPlayer(prev => ({ ...prev, hp: prev.hp - totalDamageTaken }));
       } else {
         stoneGain = -Math.min(player.stonesLow, monsterLevel * 5);
         stoneType = 'low';
         logMsg = `你与 [${monsterName}] 激战数十回合，终因实力不济负伤遁走，损失了下品灵石 x${Math.abs(stoneGain)}。`;
-        setPlayer(prev => ({ ...prev, hp: Math.max(1, Math.floor(prev.hp * 0.1)) }));
+        setPlayer(prev => ({ ...prev, hp: Math.floor(prev.hp * 0.1) }));
       }
     }
 
@@ -839,11 +839,11 @@ export default function Cultivation() {
     if (exchangeFrom === 'top' && exchangeTo === 'high') {
       exchangeRate = 10;
     } else if (exchangeFrom === 'high' && exchangeTo === 'low') {
-      exchangeRate = 100;
+      exchangeRate = 10;
     } else if (exchangeFrom === 'high' && exchangeTo === 'top') {
       exchangeRate = 0.1;
     } else if (exchangeFrom === 'low' && exchangeTo === 'high') {
-      exchangeRate = 0.01;
+      exchangeRate = 0.1;
     } else {
       addLog("无效的兑换方向！");
       return;
@@ -1093,7 +1093,7 @@ export default function Cultivation() {
     if (option.risk.stonesLow) next.stonesLow = Math.max(0, next.stonesLow + Math.floor(option.risk.stonesLow * riskMultiplier));
     if (option.risk.stonesHigh) next.stonesHigh = Math.max(0, next.stonesHigh + Math.floor(option.risk.stonesHigh * riskMultiplier));
     if (option.risk.stonesTop) next.stonesTop = Math.max(0, next.stonesTop + Math.floor(option.risk.stonesTop * riskMultiplier));
-    if (option.risk.hp) next.hp = Math.max(1, next.hp + Math.floor(option.risk.hp * riskMultiplier));
+    if (option.risk.hp) next.hp = next.hp + Math.floor(option.risk.hp * riskMultiplier);
     
     return next;
   };
@@ -1847,7 +1847,7 @@ export default function Cultivation() {
                       />
                     </div>
                     <div className="text-[8px] text-white/40 mb-2">
-                      兑换比例：1极品 = 1000高级 = 1,000,000下品
+                      兑换比例：1极品 = 10高级，1高级 = 10下品
                     </div>
                     <button 
                       onClick={handleStoneExchange}
