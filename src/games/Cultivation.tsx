@@ -846,7 +846,7 @@ export default function Cultivation() {
       return;
     }
 
-    const toAmount = Math.floor(exchangeAmount);
+    const toAmount = Math.floor(exchangeAmount * exchangeRate);
 
     setPlayer(prev => {
       const next = { ...prev };
