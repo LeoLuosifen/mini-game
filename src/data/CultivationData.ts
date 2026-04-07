@@ -420,7 +420,8 @@ export const MARKET_POOL = [
   { id: 'jiedan_pill', name: "结丹丹", desc: "帮助突破到金丹期的瓶颈", costBase: 5000, currencyType: 'high', effect: { breakthrough: 'jiedan' } },
   { id: 'yingbian_pill', name: "婴变丹", desc: "帮助突破到元婴期的瓶颈", costBase: 10000, currencyType: 'high', effect: { breakthrough: 'yingbian' } },
   { id: 'huashen_pill', name: "化神丹", desc: "帮助突破到化神期的瓶颈", costBase: 20000, currencyType: 'top', effect: { breakthrough: 'huashen' } },
-  { id: 'pozhang_pill', name: "破障丹", desc: "帮助突破灵根限制，提升境界上限", costBase: 30000, currencyType: 'top', effect: { breakthrough: 'pozhang' } }
+  { id: 'pozhang_pill', name: "破障丹", desc: "帮助突破灵根限制，提升境界上限", costBase: 30000, currencyType: 'top', effect: { breakthrough: 'pozhang' } },
+  { id: 'linggen_pill', name: "洗灵丹", desc: "洗练灵根，提升灵根品质", costBase: 50000, currencyType: 'top', effect: { rootUpgrade: true } }
 ];
 
 export const WORK_TASKS = [
